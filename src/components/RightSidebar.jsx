@@ -1,142 +1,158 @@
-import { CheckSquare, FileText, Paperclip } from "lucide-react";
+import { CheckSquare, FileText, Paperclip, Share, Plus, UserPlus } from "lucide-react";
+import { useParams } from "react-router-dom";
+import { useApp } from "../context/AppContext";
+import { CircularProgress } from "./LeftSidebar";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "../lib/utils";
 
 export default function RightSidebar() {
+    const { id } = useParams();
+    const contextId = parseInt(id);
+    const { contexts } = useApp();
+    const ctx = contexts.find(c => c.id === contextId) || contexts[0];
+
+    const themeColor = id ? (ctx.id === 1 ? "text-cyan-400" : ctx.id === 2 ? "text-amber-400" : ctx.id === 4 ? "text-emerald-400" : "text-purple-400") : "text-primary";
+    const themeShadow = id ? (ctx.id === 1 ? "shadow-[0_0_15px_rgba(6,182,212,0.4)]" : ctx.id === 2 ? "shadow-[0_0_15px_rgba(245,158,11,0.3)]" : ctx.id === 4 ? "shadow-[0_0_15px_rgba(16,185,129,0.3)]" : "shadow-[0_0_15px_rgba(168,85,247,0.3)]") : "";
+
     return (
-        <div className="p-6 flex flex-col gap-8 h-full">
-            {/* Intelligence Score */}
-            <div>
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-4">Context Intelligence</h3>
-                <div className="flex items-center gap-4 mb-6">
-                    {/* Radial Progress Ring */}
-                    <div className="relative w-16 h-16 flex items-center justify-center">
-                        <svg className="w-full h-full -rotate-90">
-                            <circle cx="32" cy="32" r="28" className="stroke-slate-800 fill-none" strokeWidth="4" />
-                            <circle cx="32" cy="32" r="28" className="stroke-primary fill-none line-cap-round" strokeWidth="4" strokeDasharray="175" strokeDashoffset="22" style={{ transition: 'stroke-dashoffset 1s ease-in-out' }} />
-                        </svg>
-                        <span className="absolute text-lg font-bold text-white drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]">87</span>
-                    </div>
+        <div className="p-6 flex flex-col gap-8 h-full bg-[#05070A]/50 backdrop-blur-md">
+            <AnimatePresence mode="wait">
+                <motion.div
+                    key={`ctx-${ctx.id}`}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex flex-col gap-8"
+                >
+                    {/* Intelligence Score */}
                     <div>
-                        <div className="text-white font-bold text-base bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Excellent</div>
-                        <div className="text-xs text-slate-400 mt-0.5">Context is well-organized</div>
-                    </div>
-                </div>
-
-                {/* Progress Bars */}
-                <div className="space-y-4">
-                    <div className="space-y-1.5">
-                        <div className="flex justify-between text-[11px] font-medium text-slate-300">
-                            <span>Completeness</span><span className="text-primary">92%</span>
-                        </div>
-                        <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-primary rounded-full shadow-[0_0_10px_rgba(6,182,212,0.6)]" style={{ width: '92%' }}></div>
-                        </div>
-                    </div>
-                    <div className="space-y-1.5">
-                        <div className="flex justify-between text-[11px] font-medium text-slate-300">
-                            <span>Connections</span><span className="text-[#0ea5e9]">75%</span>
-                        </div>
-                        <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-[#0ea5e9] rounded-full" style={{ width: '75%' }}></div>
-                        </div>
-                    </div>
-                    <div className="space-y-1.5">
-                        <div className="flex justify-between text-[11px] font-medium text-slate-300">
-                            <span>Freshness</span><span className="text-amber-500">79%</span>
-                        </div>
-                        <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-amber-500 rounded-full" style={{ width: '79%' }}></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="h-px bg-border/40"></div>
-
-            {/* Members */}
-            <div>
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-4">Members</h3>
-                <div className="flex flex-col gap-4">
-                    {[
-                        { in: "SC", name: "Sarah Chen", role: "Owner", color: "bg-teal-500", on: true },
-                        { in: "AK", name: "Alex Kim", role: "Editor", color: "bg-amber-600", on: true },
-                        { in: "MR", name: "Marcus R.", role: "Editor", color: "bg-[#0ea5e9]", on: false },
-                        { in: "JT", name: "Jamie T.", role: "Viewer", color: "bg-purple-600", on: false },
-                    ].map(m => (
-                        <div key={m.in} className="flex items-center justify-between group cursor-pointer">
-                            <div className="flex items-center gap-3">
-                                <div className={`w-8 h-8 rounded-full ${m.color} flex items-center justify-center text-[11px] font-bold text-white shadow-sm ring-2 ring-background`}>
-                                    {m.in}
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 mb-5">Context Intelligence</h3>
+                        <div className="flex items-center gap-5 mb-8 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                            <CircularProgress
+                                key={`progress-${ctx.id}`}
+                                score={ctx.score}
+                                color={themeColor}
+                                isActive={true}
+                                theme={{ shadow: themeShadow }}
+                                size="lg"
+                            />
+                            <div>
+                                <div className={cn("font-black text-xl tracking-tight transition-colors", themeColor)}>
+                                    {ctx.status}
                                 </div>
-                                <div>
-                                    <div className="text-[13px] font-medium text-slate-200 group-hover:text-white transition-colors">{m.name}</div>
-                                    <div className="text-[11px] text-slate-500">{m.role}</div>
+                                <div className="text-xs font-bold text-slate-500 mt-0.5">{ctx.statusDesc}</div>
+                            </div>
+                        </div>
+
+                        {/* Progress Bars */}
+                        <div className="space-y-5 px-1">
+                            {[
+                                { label: "Completeness", value: ctx.metrics.completeness, color: themeColor },
+                                { label: "Connections", value: ctx.metrics.connections, color: "text-blue-400" },
+                                { id: "freshness", label: "Freshness", value: ctx.metrics.freshness, color: "text-amber-500" }
+                            ].map((m) => (
+                                <div key={m.label} className="space-y-2">
+                                    <div className="flex justify-between text-[11px] font-black tracking-widest uppercase text-slate-500">
+                                        <span>{m.label}</span>
+                                        <span className={m.color}>{m.value}%</span>
+                                    </div>
+                                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${m.value}%` }}
+                                            transition={{ duration: 1, ease: "easeOut" }}
+                                            className={cn("h-full rounded-full transition-all duration-500", m.color.replace('text-', 'bg-'))}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                            <div className={`w-1.5 h-1.5 rounded-full ${m.on ? 'bg-green-500 shadow-[0_0_5px_#22C55E]' : 'bg-slate-700'}`}></div>
-                        </div>
-                    ))}
-                    <button className="mt-2 w-full py-2.5 rounded-xl border border-dashed border-slate-600 text-xs font-medium text-slate-400 hover:text-slate-200 hover:border-slate-500 hover:bg-slate-800/30 transition-all">
-                        + Invite member
-                    </button>
-                </div>
-            </div>
-
-            <div className="h-px bg-border/40"></div>
-
-            {/* Tags */}
-            <div>
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-4">Tags</h3>
-                <div className="flex flex-wrap gap-2">
-                    {["#hackathon", "#AI", "#2026", "#react", "#typescript", "#graph-db", "#ContextOS"].map(tag => (
-                        <span key={tag} className="px-2.5 py-1 text-[11px] font-medium text-slate-400 bg-slate-800/60 border border-slate-700/60 rounded-full hover:bg-slate-700 hover:text-white cursor-pointer transition-colors">
-                            {tag}
-                        </span>
-                    ))}
-                </div>
-            </div>
-
-            <div className="h-px bg-border/40"></div>
-
-            {/* Activity Timeline Mini */}
-            <div>
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-4 flex justify-between items-center">
-                    Activity <span className="text-primary cursor-pointer hover:underline text-[9px]">View all</span>
-                </h3>
-
-                <div className="flex flex-col gap-0 relative">
-                    <div className="absolute left-[3px] top-2 bottom-2 w-px bg-slate-800 z-0"></div>
-
-                    <div className="relative z-10 flex flex-row items-start justify-between mb-5 group cursor-pointer">
-                        <div className="flex gap-3 flex-1">
-                            <div className="w-2 h-2 rounded-full bg-purple-500 mt-1.5 shadow-[0_0_8px_rgba(168,85,247,0.8)] shrink-0"></div>
-                            <div>
-                                <p className="text-[12px] text-slate-300 leading-snug"><span className="text-white font-medium">You</span> Added note <br /> <span className="text-purple-400 group-hover:underline">Architecture Decision Record</span></p>
-                                <p className="text-[10px] text-slate-500 mt-0.5">2m ago</p>
-                            </div>
+                            ))}
                         </div>
                     </div>
 
-                    <div className="relative z-10 flex flex-row items-start justify-between mb-5 group cursor-pointer">
-                        <div className="flex gap-3 flex-1">
-                            <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 shadow-[0_0_8px_rgba(34,197,94,0.8)] shrink-0"></div>
-                            <div>
-                                <p className="text-[12px] text-slate-300 leading-snug"><span className="text-white font-medium">Alex</span> Completed task <br /> <span className="text-green-400 group-hover:underline line-through opacity-80">Setup CI/CD Pipeline</span></p>
-                                <p className="text-[10px] text-slate-500 mt-0.5">14m ago</p>
-                            </div>
+                    <div className="h-px bg-white/5"></div>
+
+                    {/* Members */}
+                    <div>
+                        <div className="flex items-center justify-between mb-5">
+                            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Members</h3>
+                            <button className="text-[10px] font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest">View All</button>
+                        </div>
+                        <div className="flex flex-col gap-3">
+                            {ctx.members.map(m => (
+                                <motion.div
+                                    key={`${ctx.id}-${m.id}`}
+                                    whileHover={{ x: 4, backgroundColor: "rgba(255,255,255,0.02)" }}
+                                    className="flex items-center justify-between p-2 -mx-2 rounded-xl cursor-pointer transition-all"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={cn("w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-black text-white shadow-lg border border-white/10", m.color)}>
+                                            {m.initials}
+                                        </div>
+                                        <div>
+                                            <div className="text-[13px] font-black text-slate-200">{m.name}</div>
+                                            <div className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter">{m.role}</div>
+                                        </div>
+                                    </div>
+                                    <div className={cn("w-1.5 h-1.5 rounded-full", m.online ? 'bg-emerald-500 shadow-[0_0_10px_#10B981]' : 'bg-slate-800')}></div>
+                                </motion.div>
+                            ))}
+                            <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                className="mt-2 w-full py-3 rounded-xl border border-dashed border-white/10 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-white hover:border-white/20 hover:bg-white/[0.02] transition-all flex items-center justify-center gap-2"
+                            >
+                                <UserPlus className="w-3.5 h-3.5" /> Invite Member
+                            </motion.button>
                         </div>
                     </div>
 
-                    <div className="relative z-10 flex flex-row items-start justify-between mb-5 group cursor-pointer">
-                        <div className="flex gap-3 flex-1">
-                            <div className="w-2 h-2 rounded-full bg-pink-500 mt-1.5 shadow-[0_0_8px_rgba(236,72,153,0.8)] shrink-0"></div>
-                            <div>
-                                <p className="text-[12px] text-slate-300 leading-snug"><span className="text-white font-medium">Sarah</span> Uploaded file <br /> <span className="text-pink-400 group-hover:underline">wireframes_v3.fig</span></p>
-                                <p className="text-[10px] text-slate-500 mt-0.5">1h ago</p>
-                            </div>
+                    <div className="h-px bg-white/5"></div>
+
+                    {/* Tags */}
+                    <div>
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 mb-5">Insight Tags</h3>
+                        <div className="flex flex-wrap gap-2">
+                            {ctx.tags.map(tag => (
+                                <span key={tag} className="px-3 py-1.5 text-[10px] font-bold text-slate-400 bg-white/[0.03] border border-white/5 rounded-lg hover:bg-white/10 hover:text-white cursor-pointer transition-all">
+                                    {tag}
+                                </span>
+                            ))}
                         </div>
                     </div>
-                </div>
-            </div>
+
+                    <div className="h-px bg-white/5"></div>
+
+                    {/* Activity Timeline */}
+                    <div>
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 mb-5">Context Activity</h3>
+                        <div className="flex flex-col gap-5 relative">
+                            {/* Connector line */}
+                            <div className="absolute left-[7px] top-2 bottom-2 w-[1px] bg-white/5"></div>
+
+                            {ctx.activity.map((item, idx) => (
+                                <motion.div
+                                    key={`${ctx.id}-${item.id}`}
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ delay: idx * 0.1 }}
+                                    className="relative pl-6 group cursor-pointer"
+                                >
+                                    <div className={cn("absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-[#05070A] z-10", item.color)}></div>
+                                    <div>
+                                        <p className="text-[12px] text-slate-300 leading-snug font-medium">
+                                            <span className="text-white font-black">{item.user}</span> {item.action}
+                                            <br />
+                                            <span className={cn("opacity-80 group-hover:opacity-100 transition-opacity", item.strike && "line-through")}>{item.target}</span>
+                                        </p>
+                                        <p className="text-[9px] font-bold text-slate-600 mt-1 uppercase tracking-tighter">{item.time}</p>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                </motion.div>
+            </AnimatePresence>
         </div>
     );
 }

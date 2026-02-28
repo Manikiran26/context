@@ -3,7 +3,7 @@ import { Zap, LayoutDashboard, Search, Network, Clock, Plus } from "lucide-react
 import { cn } from "../lib/utils";
 
 const NAV_ITEMS = [
-    { path: "/", label: "Dashboard", icon: LayoutDashboard },
+    { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { path: "/search", label: "Search", icon: Search },
     { path: "/graph", label: "Graph View", icon: Network },
     { path: "/timeline", label: "Timeline", icon: Clock },

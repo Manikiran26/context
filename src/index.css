@@ -1,11 +1,13 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 
 @theme {
-  --color-background: #0B0F19;
-  --color-surface: #111827;
-  --color-surface-hover: #1F2937;
-  --color-border: #1F2937;
-  --color-primary: #06B6D4;
+  --color-background: #000000;
+  --color-surface: #0A0A0A;
+  --color-surface-hover: #121212;
+  --color-border: #1A1A1A;
+  --color-primary: #F0E6FF;
+  /* Lavender from Landing Page */
   --color-accent-context: #06B6D4;
   --color-accent-notes: #A855F7;
   --color-accent-tasks: #22C55E;
@@ -13,7 +15,7 @@
   --color-accent-files: #EC4899;
   --color-accent-members: #14B8A6;
 
-  --font-sans: "Inter", system-ui, sans-serif;
+  --font-sans: "Outfit", "Inter", system-ui, sans-serif;
 
   --animate-gradient-radial: pulse 25s infinite;
   --animate-pop-in: popIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -35,10 +37,11 @@
   body {
     background-color: var(--color-background);
     color: #e2e8f0;
-    -webkit-font-smoothing: antialiased;
     font-family: var(--font-sans);
     overflow: hidden;
     user-select: none;
+    -webkit-user-select: none;
+    -webkit-font-smoothing: antialiased;
   }
 }
 
@@ -65,6 +68,7 @@
 .glass-panel {
   background-color: rgba(17, 24, 39, 0.6);
   backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   border-width: 1px;
   border-color: rgba(255, 255, 255, 0.05);
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);

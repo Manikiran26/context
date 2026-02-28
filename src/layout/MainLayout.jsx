@@ -1,6 +1,5 @@
 import { Outlet } from "react-router-dom";
 import LeftSidebar from "../components/LeftSidebar";
-import FloatingActions from "../components/FloatingActions";
 
 export default function MainLayout() {
     return (
@@ -17,8 +16,7 @@ export default function MainLayout() {
             <div className="flex-1 h-full z-10 relative overflow-hidden">
                 <Outlet />
             </div>
-
-            <FloatingActions />
         </div>
     );
 }
+

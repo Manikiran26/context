@@ -1,20 +1,37 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import { Search, LayoutDashboard, Network, Clock, Plus } from "lucide-react";
-
-const COMMANDS = [
-    { id: "dashboard", label: "Dashboard", path: "/", icon: LayoutDashboard },
-    { id: "search", label: "Search", path: "/search", icon: Search },
-    { id: "graph", label: "Graph View", path: "/graph", icon: Network },
-    { id: "timeline", label: "Timeline", path: "/timeline", icon: Clock },
-    { id: "create", label: "Create Context", path: null, icon: Plus },
-];
+import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { Search, LayoutDashboard, Network, Clock, Plus, FileText } from "lucide-react";
 
 export default function CommandPalette() {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
     const navigate = useNavigate();
+    const { id: activeId } = useParams();
+    const location = useLocation();
+
+    const COMMANDS = useMemo(() => {
+        const base = [
+            { id: "dashboard", label: "Go to Dashboard", path: "/", icon: LayoutDashboard },
+            { id: "search", label: "Smart Search", path: "/search", icon: Search },
+        ];
+
+        if (activeId) {
+            base.push(
+                { id: "notes", label: "Context Notes", path: `/contexts/${activeId}/notes`, icon: FileText },
+                { id: "graph", label: "Context Graph", path: `/contexts/${activeId}/graph`, icon: Network },
+                { id: "timeline", label: "Context Timeline", path: `/contexts/${activeId}/timeline`, icon: Clock },
+            );
+        } else {
+            base.push(
+                { id: "graph", label: "Global Graph View", path: "/graph", icon: Network },
+                { id: "timeline", label: "Global Timeline", path: "/timeline", icon: Clock },
+            );
+        }
+
+        base.push({ id: "create", label: "Create New Context", path: null, icon: Plus });
+        return base;
+    }, [activeId]);
 
     useEffect(() => {
         const down = (e) => {
@@ -66,7 +83,7 @@ export default function CommandPalette() {
                             />
                             <div className="text-[10px] text-slate-500 border border-slate-700 rounded px-1.5 py-0.5 ml-2 font-mono uppercase">ESC</div>
                         </div>
-                        <div className="p-2 max-h-80 overflow-y-auto">
+                        <div className="p-2 max-h-80 overflow-y-auto custom-scrollbar">
                             {filtered.map(cmd => (
                                 <button
                                     key={cmd.id}

@@ -1,94 +1,151 @@
+import { useParams } from "react-router-dom";
 import { Bold, Italic, Underline, Code, Heading1, Heading2, Minus, Link as LinkIcon, Plus } from "lucide-react";
+import { useApp } from "../context/AppContext";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "../lib/utils";
 
 export default function ContextNotes() {
+    const { id } = useParams();
+    const { contexts } = useApp();
+    const currentContext = contexts.find(c => c.id === parseInt(id)) || contexts[0];
+
+    const toolbarButtons = [
+        { icon: Bold, label: "Bold" },
+        { icon: Italic, label: "Italic" },
+        { icon: Underline, label: "Underline" },
+        { type: "divider" },
+        { icon: Code, label: "Code" },
+        { icon: Heading1, label: "H1" },
+        { icon: Heading2, label: "H2" },
+        { icon: Minus, label: "Divider" },
+        { type: "divider" },
+        { icon: LinkIcon, label: "Link" },
+    ];
+
     return (
         <div className="max-w-4xl mx-auto px-10 py-8 pb-32">
 
             {/* Editor Toolbar */}
-            <div className="sticky top-0 z-10 bg-surface/80 backdrop-blur-xl border border-slate-700/50 rounded-xl p-1.5 flex items-center gap-1 mb-8 shadow-sm">
-                <button className="p-2 hover:bg-slate-700/50 rounded-lg text-slate-300 hover:text-white transition-colors"><Bold className="w-4 h-4" /></button>
-                <button className="p-2 hover:bg-slate-700/50 rounded-lg text-slate-300 hover:text-white transition-colors"><Italic className="w-4 h-4" /></button>
-                <button className="p-2 hover:bg-slate-700/50 rounded-lg text-slate-300 hover:text-white transition-colors"><Underline className="w-4 h-4" /></button>
-                <div className="w-px h-5 bg-border mx-2"></div>
-                <button className="p-2 hover:bg-slate-700/50 rounded-lg text-slate-300 hover:text-white transition-colors"><Code className="w-4 h-4" /></button>
-                <button className="p-2 hover:bg-slate-700/50 rounded-lg text-slate-300 hover:text-white transition-colors"><Heading1 className="w-4 h-4" /></button>
-                <button className="p-2 hover:bg-slate-700/50 rounded-lg text-slate-300 hover:text-white transition-colors"><Heading2 className="w-4 h-4" /></button>
-                <button className="p-2 hover:bg-slate-700/50 rounded-lg text-slate-300 hover:text-white transition-colors"><Minus className="w-4 h-4" /></button>
-                <div className="w-px h-5 bg-border mx-2"></div>
-                <button className="p-2 hover:bg-slate-700/50 rounded-lg text-slate-300 hover:text-white transition-colors"><LinkIcon className="w-4 h-4" /></button>
+            <motion.div
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                className="sticky top-0 z-10 bg-[#0B0F19]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-2 flex items-center gap-1 mb-10 shadow-2xl"
+            >
+                {toolbarButtons.map((btn, idx) => (
+                    btn.type === "divider" ? (
+                        <div key={`d-${idx}`} className="w-px h-5 bg-white/10 mx-2"></div>
+                    ) : (
+                        <motion.button
+                            key={btn.label}
+                            whileHover={{ backgroundColor: "rgba(255,255,255,0.05)", color: "#fff" }}
+                            whileTap={{ scale: 0.92 }}
+                            className="p-2.5 rounded-xl text-slate-500 transition-all"
+                        >
+                            <btn.icon className="w-4 h-4" />
+                        </motion.button>
+                    )
+                ))}
 
                 <div className="flex-1"></div>
-                <button className="flex items-center gap-2 px-4 py-1.5 rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-[13px] font-medium mr-1">
-                    <Plus className="w-3.5 h-3.5" /> Add Block
-                </button>
-            </div>
+                <motion.button
+                    whileHover={{ scale: 1.02, backgroundColor: "rgba(6,182,212,0.15)" }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex items-center gap-2 px-5 py-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-[13px] font-black tracking-tight uppercase"
+                >
+                    <Plus className="w-3.5 h-3.5" strokeWidth={3} /> Add Block
+                </motion.button>
+            </motion.div>
 
             {/* Editor Content */}
-            <div className="space-y-8 animate-pop-in">
-
-                {/* Title */}
-                <div>
-                    <h1 className="text-[40px] font-bold text-white tracking-tight leading-tight mb-4 flex items-center gap-3">
-                        Hackathon 2026 — Context OS
-                    </h1>
-                    <p className="text-lg text-slate-400">
-                        Building the future of digital memory. Our core thesis: context collapses app silos.
-                    </p>
-                </div>
-
-                {/* Section 1 */}
-                <div className="space-y-4">
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <span className="text-pink-500">🎯</span> Core Architecture
-                    </h2>
-                    <div className="bg-[#0e1620] border border-cyan-900/40 rounded-xl p-5 shadow-[0_4px_20px_rgba(6,182,212,0.05)]">
-                        <p className="text-cyan-100 text-base leading-relaxed">
-                            We use a graph-based relational model where every piece of information is a node with typed edges connecting them to a context.
+            <AnimatePresence mode="wait">
+                <motion.div
+                    key={currentContext.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-12"
+                >
+                    {/* Title Section */}
+                    <div className="space-y-4">
+                        <motion.h1
+                            initial={{ x: -10 }}
+                            animate={{ x: 0 }}
+                            className="text-[44px] font-black text-white tracking-tighter leading-[1.1] flex items-center gap-4"
+                        >
+                            {currentContext.name}
+                        </motion.h1>
+                        <p className="text-xl font-medium text-slate-500 max-w-2xl leading-relaxed">
+                            {currentContext.statusDesc}. Intelligence level currently at <span className="text-white font-black">{currentContext.score}%</span>.
                         </p>
                     </div>
-                </div>
 
-                {/* Section 2 */}
-                <div className="space-y-4">
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <span className="text-amber-600">📦</span> Tech Stack
-                    </h2>
-                    <p className="text-slate-400 text-sm font-medium tracking-wide">
-                        React · Supabase · pgvector · Claude API · React Flow · Framer Motion
-                    </p>
-
-                    <div className="space-y-3 mt-6">
-                        <label className="flex items-center gap-4 bg-[#0e1720]/80 border border-green-900/30 rounded-xl px-5 py-4 cursor-pointer hover:bg-[#111c27] transition-colors shadow-sm">
-                            <div className="w-5 h-5 rounded flex items-center justify-center bg-green-500 text-white shrink-0">
-                                <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    {/* Dynamic Sections Based on Context */}
+                    <div className="space-y-10">
+                        {currentContext.notes.length > 0 ? (
+                            currentContext.notes.map((note, idx) => (
+                                <motion.div
+                                    key={note.id}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: idx * 0.1 }}
+                                    className="space-y-4 group"
+                                >
+                                    <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                                        <span className="text-cyan-500 opacity-50 group-hover:opacity-100 transition-opacity">#</span> {note.title}
+                                    </h2>
+                                    <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-8 shadow-sm group-hover:border-white/10 transition-colors">
+                                        <p className="text-slate-300 text-lg leading-relaxed">
+                                            {note.content}
+                                        </p>
+                                    </div>
+                                </motion.div>
+                            ))
+                        ) : (
+                            <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-[2rem]">
+                                <p className="text-slate-600 font-bold uppercase tracking-widest">No active research blocks found</p>
                             </div>
-                            <span className="text-green-500 font-medium line-through">Finish relationship graph view</span>
-                        </label>
-
-                        <label className="flex items-center gap-4 bg-[#0e1720]/80 border border-green-900/30 rounded-xl px-5 py-4 cursor-pointer hover:bg-[#111c27] transition-colors shadow-sm">
-                            <div className="w-5 h-5 rounded flex items-center justify-center bg-green-500 text-white shrink-0">
-                                <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            </div>
-                            <span className="text-green-500 font-medium line-through">Implement smart search with semantic matching</span>
-                        </label>
-
-                        <label className="flex items-center gap-4 border border-transparent rounded-xl px-5 py-4 cursor-pointer hover:bg-slate-800/30 transition-colors">
-                            <div className="w-5 h-5 rounded border-2 border-slate-600 shrink-0"></div>
-                            <span className="text-slate-300 font-medium">Build activity heatmap component</span>
-                        </label>
-
-                        <label className="flex items-center gap-4 border border-transparent rounded-xl px-5 py-4 cursor-pointer hover:bg-slate-800/30 transition-colors">
-                            <div className="w-5 h-5 rounded border-2 border-slate-600 shrink-0"></div>
-                            <span className="text-slate-300 font-medium">Add AI context intelligence scorer</span>
-                        </label>
+                        )}
                     </div>
-                </div>
 
-                <div className="mt-8 pt-4 w-full border border-dashed border-slate-700/80 rounded-xl p-4 text-slate-500 text-sm hover:border-slate-500 hover:text-slate-400 cursor-text transition-colors bg-slate-800/20">
-                    + Press to add a new block...
-                </div>
+                    {/* Tasks Section */}
+                    {currentContext.tasks.length > 0 && (
+                        <div className="space-y-6">
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-600">Context Objectives</h3>
+                            <div className="grid gap-3">
+                                {currentContext.tasks.map((task) => (
+                                    <motion.div
+                                        key={task.id}
+                                        whileHover={{ x: 6, backgroundColor: "rgba(255,255,255,0.02)" }}
+                                        className="flex items-center gap-4 p-5 rounded-2xl border border-white/5 bg-white/[0.01] transition-all cursor-pointer group"
+                                    >
+                                        <div className={cn(
+                                            "w-6 h-6 rounded-lg flex items-center justify-center transition-all",
+                                            task.status === "completed" ? "bg-emerald-500 text-white" : "border-2 border-slate-700"
+                                        )}>
+                                            {task.status === "completed" && <Plus className="w-4 h-4 rotate-45" strokeWidth={4} />}
+                                        </div>
+                                        <span className={cn(
+                                            "text-base font-bold transition-all",
+                                            task.status === "completed" ? "text-slate-500 line-through" : "text-slate-200 group-hover:text-white"
+                                        )}>
+                                            {task.title}
+                                        </span>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
-            </div>
+                    <motion.div
+                        whileHover={{ scale: 1.01 }}
+                        className="mt-12 py-8 w-full border-2 border-dashed border-white/5 rounded-[2.5rem] flex flex-col items-center justify-center text-slate-600 gap-3 hover:border-white/20 hover:text-slate-400 cursor-text transition-all bg-white/[0.01]"
+                    >
+                        <Plus className="w-8 h-8 opacity-20" />
+                        <span className="font-black uppercase tracking-widest text-xs">Initialize New Intelligence Block</span>
+                    </motion.div>
+                </motion.div>
+            </AnimatePresence>
         </div>
     );
 }
