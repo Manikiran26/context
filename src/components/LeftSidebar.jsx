@@ -53,7 +53,7 @@ const CircularProgress = ({ score, color, isActive, theme, size = "sm" }) => {
     const center = size === "lg" ? 32 : 18;
     const svgSize = size === "lg" ? 64 : 36;
     const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (score / 100) * circumference;
+    const offset = circumference - ((score || 0) / 100) * circumference;
 
     return (
         <div className={clsx("relative flex items-center justify-center shrink-0", size === "lg" ? "w-16 h-16" : "w-9 h-9")}>
@@ -90,10 +90,10 @@ const CircularProgress = ({ score, color, isActive, theme, size = "sm" }) => {
             </svg>
             <span className={clsx(
                 "absolute inset-0 flex items-center justify-center font-black transition-colors duration-500",
-                size === "lg" ? "text-lg" : "text-[10px]",
-                isActive ? color : "text-slate-500 group-hover:text-slate-400"
+                size === "lg" ? "text-xl" : "text-[11px]",
+                isActive ? "text-white" : "text-slate-500 group-hover:text-slate-300"
             )}>
-                {score}
+                {score || 0}
             </span>
         </div>
     );
@@ -105,12 +105,12 @@ export default function LeftSidebar() {
     const { user, contexts } = useApp();
 
     return (
-        <div className="w-[280px] h-full flex flex-col bg-[#05070A] border-r border-white/5 text-sm font-sans relative z-30">
+        <div className="w-[280px] h-full flex flex-col bg-surface border-r border-white/5 text-sm font-sans relative z-30">
 
             {/* Branding */}
             <div className="h-[80px] flex items-center px-6 shrink-0">
                 <div className="flex items-center gap-3.5">
-                    <div className="w-9 h-9 rounded-xl bg-white/[0.03] flex items-center justify-center border border-white/10 shadow-[0_0_20px_rgba(255,255,255,0.05)]">
+                    <div className="w-9 h-9 rounded-xl bg-surface-hover flex items-center justify-center border border-white/10 shadow-[0_0_20px_rgba(255,255,255,0.05)]">
                         <span className="text-white font-black text-xl">C</span>
                     </div>
                     <span className="font-black text-[17px] tracking-[0.15em] uppercase text-white">Context OS</span>
@@ -123,7 +123,7 @@ export default function LeftSidebar() {
                 <input
                     type="text"
                     placeholder="Search contexts..."
-                    className="w-full bg-white/[0.02] border border-white/5 rounded-2xl py-3 pl-11 pr-4 text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-white/20 focus:ring-1 focus:ring-white/10 transition-all text-[13px] font-medium"
+                    className="w-full bg-surface-hover border border-white/5 rounded-2xl py-3 pl-11 pr-4 text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-white/20 focus:ring-1 focus:ring-white/10 transition-all text-[13px] font-medium"
                 />
             </div>
 
@@ -173,7 +173,7 @@ export default function LeftSidebar() {
                         const isActive = parseInt(activeId) === ctx.id || String(activeId) === String(ctx.id);
                         const theme = THEME_MAP[ctx.icon] || THEME_MAP["Zap"];
                         const Icon = theme.icon;
-                        const itemCount = ctx.items?.length ?? (ctx.notes.length + ctx.tasks.length + ctx.files.length);
+                        const itemCount = ctx.items?.length ?? ((ctx.notes?.length || 0) + (ctx.tasks?.length || 0) + (ctx.files?.length || 0));
 
                         return (
                             <motion.div
@@ -208,7 +208,7 @@ export default function LeftSidebar() {
                                                 {ctx.name}
                                             </div>
                                             <div className="text-[11px] font-bold text-slate-600 mt-0.5 tracking-wide">
-                                                {itemCount} items · {ctx.members.length} members
+                                                {itemCount} items · {ctx.members?.length ?? 0} members
                                             </div>
                                         </div>
                                     </div>
@@ -236,9 +236,9 @@ export default function LeftSidebar() {
             </div>
 
             {/* User Profile Footer */}
-            <div className="h-[80px] shrink-0 border-t border-white/5 px-6 flex items-center justify-between hover:bg-white/[0.02] cursor-pointer transition-all">
+            <div className="h-[80px] shrink-0 border-t border-white/5 px-6 flex items-center justify-between hover:bg-surface-hover cursor-pointer transition-all">
                 <div className="flex items-center gap-3.5">
-                    <div className="w-10 h-10 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center text-white font-black text-xs shadow-lg">
+                    <div className="w-10 h-10 rounded-full bg-background border border-white/10 flex items-center justify-center text-white font-black text-xs shadow-lg">
                         {user?.username ? user.username.slice(0, 2).toUpperCase() : "YC"}
                     </div>
                     <div>

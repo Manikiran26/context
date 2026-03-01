@@ -24,7 +24,8 @@ export default function GraphView() {
             ...currentContext.notes,
             ...currentContext.tasks,
             ...currentContext.files,
-            ...(currentContext.deadlines || [])
+            ...(currentContext.deadlines || []),
+            ...(currentContext.members || [])
         ];
 
         items.forEach((item, index) => {
@@ -36,7 +37,7 @@ export default function GraphView() {
                     x: 400 + radius * Math.cos(angle),
                     y: 300 + radius * Math.sin(angle)
                 },
-                data: { label: item.title, type: item.type },
+                data: { label: item.title || item.name || item.email?.split('@')[0], type: item.type || (item.email ? 'member' : 'item') },
                 type: 'custom'
             });
         });
@@ -49,7 +50,8 @@ export default function GraphView() {
             ...currentContext.notes,
             ...currentContext.tasks,
             ...currentContext.files,
-            ...(currentContext.deadlines || [])
+            ...(currentContext.deadlines || []),
+            ...(currentContext.members || [])
         ];
 
         return items.map(item => ({

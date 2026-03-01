@@ -16,6 +16,8 @@ const dashboardRoutes = require('./routes/dashboard');
 const searchRoutes = require('./routes/search');
 const timelineRoutes = require('./routes/timeline');
 const systemRoutes = require('./routes/system');
+const memberRequestRoutes = require('./routes/memberRequests');
+const notificationRoutes = require('./routes/notifications');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/contexts', contextRoutes);
@@ -23,6 +25,8 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/timeline', timelineRoutes);
 app.use('/api/system', systemRoutes);
+app.use('/api/member-requests', memberRequestRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.listen(PORT, async () => {
     try {

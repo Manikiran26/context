@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import MainLayout from "./layout/MainLayout";
+import AppLayout from "./layout/AppLayout";
 import ContextLayout from "./layout/ContextLayout";
 import Dashboard from "./pages/Dashboard";
 import Search from "./pages/Search";
@@ -12,6 +12,13 @@ import LandingPage from "./pages/LandingPage";
 import AllContextsPage from "./pages/AllContextsPage";
 import ContextPage from "./pages/ContextPage";
 
+// Guard: redirect to /login if no token
+function ProtectedRoute({ children }) {
+    const token = localStorage.getItem("token");
+    if (!token) return <Navigate to="/login" replace />;
+    return children;
+}
+
 function AnimatedRoutes() {
     const location = useLocation();
 
@@ -21,17 +28,13 @@ function AnimatedRoutes() {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
 
-                <Route element={<MainLayout />}>
+                <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/search" element={<Search />} />
-
-                    {/* New: All Contexts list */}
                     <Route path="/contexts" element={<AllContextsPage />} />
-
-                    {/* New: Individual context page with items */}
                     <Route path="/context/:id" element={<ContextPage />} />
 
-                    {/* Legacy: Context-specific pages (Notes/Graph/Timeline) */}
+                    {/* Legacy context routes */}
                     <Route path="/contexts/:id" element={<ContextLayout />}>
                         <Route index element={<Navigate to="notes" replace />} />
                         <Route path="notes" element={<ContextNotes />} />

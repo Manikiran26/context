@@ -1,7 +1,7 @@
 import { Bold, Italic, Underline, Code, Heading1, Heading2, Link as LinkIcon, Minus } from "lucide-react";
 import { motion } from "framer-motion";
 
-export default function EditorToolbar() {
+export default function EditorToolbar({ onAddBlock }) {
     return (
         <div className="flex items-center justify-between border border-white/10 rounded-2xl px-4 py-2 bg-white/5 mb-6">
             <div className="flex items-center gap-3">
@@ -35,6 +35,7 @@ export default function EditorToolbar() {
             <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
+                onClick={onAddBlock}
                 className="bg-cyan-500/20 text-cyan-400 px-3 py-1.5 rounded-lg hover:bg-cyan-500/30 transition-all text-sm font-bold border border-cyan-500/10"
             >
                 + Add Block

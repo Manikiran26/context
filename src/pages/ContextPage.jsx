@@ -1,21 +1,59 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Plus, Type, CheckSquare, Paperclip, Check, Trash2,
     FileText, ChevronDown, PenLine, Network, Clock,
-    GitBranch, Calendar, X, AlertCircle, Edit3, Flag
+    GitBranch, Calendar, X, AlertCircle, Edit3, Flag, Users
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import clsx from "clsx";
 import ContextSidebar from "../components/ContextSidebar";
 import EditorToolbar from "../components/EditorToolbar";
+import { apiGetContext, apiCreateNote, apiCreateTask, apiGetNotes, apiGetTasks, apiGetActivity,
+    apiGetMembers, apiInviteMember, apiGetPendingRequests, apiApproveRequest, apiRejectRequest,
+    apiDeleteContext, apiGetGraph, apiUpdateNote, apiDeleteNote, apiUpdateTask, apiDeleteTask,
+    apiCreateFile, apiDeleteFile, apiGetIntelligence, apiGetFiles,
+    apiGetDeadlines, apiCreateDeadline, apiDeleteDeadline } from "../lib/api";
+
+// ─── Relative Time Helper ──────────────────────────────────────
+
+function relativeTime(dateStr) {
+    if (!dateStr) return "";
+    const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+    if (diff < 60) return `JUST NOW`;
+    if (diff < 3600) return `${Math.floor(diff / 60)} MIN AGO`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} HR AGO`;
+    const days = Math.floor(diff / 86400);
+    if (days < 7) return `${days} DAYS AGO`;
+    return new Date(dateStr).toLocaleDateString("en-GB", { day: "numeric", month: "short" }).toUpperCase();
+}
 
 // ─── Item Components (Notes tab) ──────────────────────────────
 
-function TextItem({ item, contextId }) {
-    const { updateItem, removeItem } = useApp();
+function TextItem({ item, contextId, onRefresh }) {
     const [hover, setHover] = useState(false);
+    const [editing, setEditing] = useState(false);
+    const [content, setContent] = useState(item.content || "");
+    const [saving, setSaving] = useState(false);
+
+    const handleBlur = async () => {
+        if (content === (item.content || "")) { setEditing(false); return; }
+        setSaving(true);
+        try {
+            await apiUpdateNote(contextId, item.id, { content });
+            onRefresh?.();
+        } catch (e) { console.error(e.message); }
+        finally { setSaving(false); setEditing(false); }
+    };
+
+    const handleDelete = async () => {
+        try {
+            await apiDeleteNote(contextId, item.id);
+            onRefresh?.();
+        } catch (e) { alert(e.message); }
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
@@ -29,29 +67,71 @@ function TextItem({ item, contextId }) {
                     </div>
                     <AnimatePresence>
                         {hover && (
-                            <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
-                                onClick={() => removeItem(contextId, item.id)}
-                                className="w-6 h-6 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 hover:bg-rose-500/20 transition-all">
-                                <Trash2 className="w-3 h-3" />
-                            </motion.button>
+                            <div className="flex items-center gap-1.5">
+                                <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                                    onClick={() => setEditing(true)}
+                                    className="w-6 h-6 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 hover:bg-cyan-500/20 transition-all">
+                                    <Edit3 className="w-3 h-3" />
+                                </motion.button>
+                                <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                                    onClick={handleDelete}
+                                    className="w-6 h-6 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 hover:bg-rose-500/20 transition-all">
+                                    <Trash2 className="w-3 h-3" />
+                                </motion.button>
+                            </div>
                         )}
                     </AnimatePresence>
                 </div>
                 <textarea
-                    value={item.content}
-                    onChange={(e) => updateItem(contextId, item.id, { content: e.target.value })}
+                    value={content}
+                    onChange={e => { setContent(e.target.value); setEditing(true); }}
+                    onBlur={handleBlur}
                     placeholder="Start typing your thoughts..."
                     rows={3}
                     className="w-full bg-transparent text-slate-200 text-[15px] leading-relaxed font-medium placeholder:text-slate-700 focus:outline-none resize-none"
                 />
+                {saving && <p className="text-[10px] text-slate-600 font-bold mt-1">Saving...</p>}
             </div>
         </motion.div>
     );
 }
 
-function TaskItem({ item, contextId }) {
-    const { toggleTask, updateItem, removeItem } = useApp();
+function TaskItem({ item, contextId, onRefresh }) {
     const [hover, setHover] = useState(false);
+    const [completed, setCompleted] = useState(!!item.completed);
+    const [toggling, setToggling] = useState(false);
+    const [editing, setEditing] = useState(false);
+    const [content, setContent] = useState(item.content || item.title || "");
+    const [saving, setSaving] = useState(false);
+
+    const handleToggle = async () => {
+        setToggling(true);
+        const newVal = !completed;
+        setCompleted(newVal);
+        try {
+            await apiUpdateTask(contextId, item.id, { completed: newVal });
+            onRefresh?.();
+        } catch (e) { setCompleted(!newVal); console.error(e.message); }
+        finally { setToggling(false); }
+    };
+
+    const handleBlur = async () => {
+        if (content === (item.content || item.title || "")) { setEditing(false); return; }
+        setSaving(true);
+        try {
+            await apiUpdateTask(contextId, item.id, { content, title: content });
+            onRefresh?.();
+        } catch (e) { console.error(e.message); }
+        finally { setSaving(false); setEditing(false); }
+    };
+
+    const handleDelete = async () => {
+        try {
+            await apiDeleteTask(contextId, item.id);
+            onRefresh?.();
+        } catch (e) { alert(e.message); }
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
@@ -59,31 +139,88 @@ function TaskItem({ item, contextId }) {
             onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
         >
             <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-white/15 transition-colors">
-                <button
-                    onClick={() => toggleTask(contextId, item.id)}
+                <button onClick={handleToggle} disabled={toggling}
                     className={clsx("w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all duration-200",
-                        item.completed ? "bg-emerald-500 border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)]" : "border-slate-700 hover:border-emerald-500/50"
+                        completed ? "bg-emerald-500 border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)]" : "border-slate-700 hover:border-emerald-500/50"
                     )}>
                     <AnimatePresence>
-                        {item.completed && (
+                        {completed && (
                             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
                                 <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </button>
-                <input
-                    type="text" value={item.content}
-                    onChange={(e) => updateItem(contextId, item.id, { content: e.target.value })}
-                    placeholder="Task description..."
-                    className={clsx("flex-1 bg-transparent text-[15px] font-medium focus:outline-none transition-all",
-                        item.completed ? "text-slate-600 line-through decoration-slate-600" : "text-slate-200 placeholder:text-slate-700"
+                
+                {editing ? (
+                    <input
+                        autoFocus
+                        value={content}
+                        onChange={e => setContent(e.target.value)}
+                        onBlur={handleBlur}
+                        onKeyDown={e => e.key === 'Enter' && handleBlur()}
+                        className="flex-1 bg-transparent text-slate-200 text-[15px] font-medium focus:outline-none"
+                    />
+                ) : (
+                    <span 
+                        onClick={() => setEditing(true)}
+                        className={clsx("flex-1 text-[15px] font-medium transition-all cursor-text",
+                            completed ? "text-slate-600 line-through decoration-slate-600" : "text-slate-200"
+                        )}
+                    >
+                        {content || "Empty Task"}
+                    </span>
+                )}
+
+                <AnimatePresence>
+                    {(hover || saving) && (
+                        <div className="flex items-center gap-2">
+                            {saving && <span className="text-[10px] text-slate-600 font-bold">Saving...</span>}
+                            {hover && !saving && (
+                                <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                                    onClick={handleDelete}
+                                    className="w-6 h-6 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 hover:bg-rose-500/20 transition-all">
+                                    <Trash2 className="w-3 h-3" />
+                                </motion.button>
+                            )}
+                        </div>
                     )}
-                />
+                </AnimatePresence>
+            </div>
+        </motion.div>
+    );
+}
+
+function EventItem({ item, contextId, onRefresh }) {
+    const [hover, setHover] = useState(false);
+
+    const handleDelete = async () => {
+        try {
+            const id = item.id;
+            await apiDeleteDeadline(contextId, id);
+            onRefresh?.();
+        } catch (e) { alert(e.message); }
+    };
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+            className="group relative"
+            onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+        >
+            <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-white/15 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                    <Calendar className="w-5 h-5 text-amber-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-black text-slate-200 truncate">{item.title || item.name}</p>
+                    {item.due_at && <p className="text-[11px] font-bold text-slate-600 mt-0.5">Due: {new Date(item.due_at).toLocaleDateString()}</p>}
+                </div>
+                <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] font-black uppercase tracking-widest text-amber-400 shrink-0">Event</span>
                 <AnimatePresence>
                     {hover && (
                         <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
-                            onClick={() => removeItem(contextId, item.id)}
+                            onClick={handleDelete}
                             className="w-6 h-6 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 hover:bg-rose-500/20 transition-all">
                             <Trash2 className="w-3 h-3" />
                         </motion.button>
@@ -94,9 +231,16 @@ function TaskItem({ item, contextId }) {
     );
 }
 
-function FileItem({ item, contextId }) {
-    const { removeItem } = useApp();
+function FileItem({ item, contextId, onRefresh }) {
     const [hover, setHover] = useState(false);
+
+    const handleDelete = async () => {
+        try {
+            await apiDeleteFile(contextId, item.id);
+            onRefresh?.();
+        } catch (e) { alert(e.message); }
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
@@ -115,7 +259,7 @@ function FileItem({ item, contextId }) {
                 <AnimatePresence>
                     {hover && (
                         <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
-                            onClick={() => removeItem(contextId, item.id)}
+                            onClick={handleDelete}
                             className="w-6 h-6 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 hover:bg-rose-500/20 transition-all">
                             <Trash2 className="w-3 h-3" />
                         </motion.button>
@@ -125,6 +269,7 @@ function FileItem({ item, contextId }) {
         </motion.div>
     );
 }
+
 
 // ─── Graph Placeholder ─────────────────────────────────────────
 
@@ -502,20 +647,356 @@ const ADD_OPTIONS = [
     { type: "text", label: "Text Block", icon: Type, color: "text-cyan-400", bg: "bg-cyan-500/10", border: "border-cyan-500/20" },
     { type: "task", label: "Task", icon: CheckSquare, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
     { type: "file", label: "File", icon: Paperclip, color: "text-pink-400", bg: "bg-pink-500/10", border: "border-pink-500/20" },
+    { type: "deadline", label: "Event/Deadline", icon: Calendar, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
 ];
+
+// ─── Members Tab ────────────────────────────────────────────────
+
+function MembersTab({ contextId, currentUserRole, onRefreshActivity }) {
+    const [members, setMembers] = useState([]);
+    const [pending, setPending] = useState([]);
+    const [inviteEmail, setInviteEmail] = useState("");
+    const [inviteRole, setInviteRole] = useState("viewer");
+    const [inviting, setInviting] = useState(false);
+    const [inviteError, setInviteError] = useState("");
+    const [inviteOk, setInviteOk] = useState("");
+
+    const loadAll = useCallback(async () => {
+        try {
+            const [ms] = await Promise.all([apiGetMembers(contextId)]);
+            setMembers(ms);
+        } catch (e) { /* silent */ }
+        if (currentUserRole === "owner") {
+            try {
+                const ps = await apiGetPendingRequests(contextId);
+                setPending(ps);
+            } catch (e) { /* silent */ }
+        }
+    }, [contextId, currentUserRole]);
+
+    useEffect(() => { loadAll(); }, [loadAll]);
+
+    const handleInvite = async (e) => {
+        e.preventDefault();
+        setInviteError(""); setInviteOk("");
+        if (!inviteEmail.trim()) return;
+        setInviting(true);
+        try {
+            await apiInviteMember(contextId, inviteEmail.trim(), inviteRole);
+            setInviteOk("Invite sent! User appears as pending until approved.");
+            setInviteEmail("");
+            await loadAll();
+            onRefreshActivity?.();
+        } catch (err) {
+            setInviteError(err.message || "Failed to invite");
+        } finally {
+            setInviting(false);
+        }
+    };
+
+    const handleApprove = async (userId) => {
+        try {
+            await apiApproveRequest(contextId, userId);
+            await loadAll();
+            onRefreshActivity?.();
+        } catch (e) { alert(e.message); }
+    };
+
+    const handleReject = async (userId) => {
+        try {
+            await apiRejectRequest(contextId, userId);
+            await loadAll();
+            onRefreshActivity?.();
+        } catch (e) { alert(e.message); }
+    };
+
+    return (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-8">
+
+            {/* Active Members */}
+            <div>
+                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-600 mb-4">Active Members ({members.length})</h3>
+                <div className="space-y-2">
+                    {members.length === 0 && (
+                        <p className="text-slate-700 text-sm py-6 text-center border border-dashed border-white/5 rounded-2xl">No active members found.</p>
+                    )}
+                    {members.map(m => (
+                        <div key={m.id || m.user_id} className="flex items-center justify-between bg-white/[0.02] border border-white/[0.06] rounded-2xl px-5 py-3.5">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 font-black text-sm">
+                                    {m.email?.[0]?.toUpperCase() ?? "?"}
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-white">{m.email}</p>
+                                    <p className="text-[11px] text-slate-600 font-medium capitalize">{m.role}</p>
+                                </div>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Active</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Pending Requests (owner only) */}
+            {currentUserRole === "owner" && pending.length > 0 && (
+                <div>
+                    <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-600 mb-4">Pending Requests ({pending.length})</h3>
+                    <div className="space-y-2">
+                        {pending.map(p => (
+                            <div key={p.user_id} className="flex items-center justify-between bg-amber-500/5 border border-amber-500/20 rounded-2xl px-5 py-3.5">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 font-black text-sm">
+                                        {p.email?.[0]?.toUpperCase() ?? "?"}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-white">{p.email}</p>
+                                        <p className="text-[11px] text-amber-600 font-bold uppercase tracking-widest">Pending · {p.role}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => handleApprove(p.user_id)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-black hover:bg-emerald-500/20 transition-all">
+                                        <Check className="w-3 h-3" strokeWidth={3} /> Approve
+                                    </button>
+                                    <button onClick={() => handleReject(p.user_id)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[11px] font-black hover:bg-rose-500/20 transition-all">
+                                        <X className="w-3 h-3" strokeWidth={3} /> Reject
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Invite (owner/admin only) */}
+            {(currentUserRole === "owner" || currentUserRole === "admin") && (
+                <div>
+                    <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-600 mb-4">Invite Member</h3>
+                    <form onSubmit={handleInvite} className="flex flex-col gap-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5">
+                        <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
+                            placeholder="teammate@email.com"
+                            className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm font-medium placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50" />
+                        <div className="flex items-center gap-3">
+                            <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
+                                className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl px-3 py-2.5 text-slate-300 text-sm font-medium focus:outline-none">
+                                <option value="viewer">Viewer</option>
+                                <option value="editor">Editor</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                            <button type="submit" disabled={inviting}
+                                className="px-5 py-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm font-black hover:bg-cyan-500/20 transition-all disabled:opacity-50">
+                                {inviting ? "Sending..." : "Send Invite"}
+                            </button>
+                        </div>
+                        {inviteError && <p className="text-rose-400 text-[12px] font-bold">{inviteError}</p>}
+                        {inviteOk && <p className="text-emerald-400 text-[12px] font-bold">{inviteOk}</p>}
+                    </form>
+                </div>
+            )}
+        </motion.div>
+    );
+}
+
+// ─── Graph Tab ──────────────────────────────────────────────────
+
+function GraphTab({ ctx, graphData }) {
+    const nodes = [
+        { x: 50, y: 50, main: true },
+        ...Array.from({ length: Math.min((graphData?.nodes?.length || 0) + 5, 8) }, (_, i) => ({
+            x: 50 + Math.cos((i / 8) * 2 * Math.PI) * 35,
+            y: 50 + Math.sin((i / 8) * 2 * Math.PI) * 35,
+            label: graphData?.nodes?.[i]?.label || ["Notes", "Tasks", "Files", "Members", "Timeline", "Links", "Refs", "Tags"][i] || "",
+            color: ["bg-cyan-500", "bg-emerald-500", "bg-pink-500", "bg-amber-500", "bg-purple-500", "bg-indigo-500", "bg-rose-500", "bg-teal-500"][i] || "bg-slate-500"
+        }))
+    ];
+
+    return (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="py-4">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                    <Network className="w-4 h-4 text-indigo-400" />
+                </div>
+                <div>
+                    <h3 className="text-white font-black text-[15px]">Context Graph</h3>
+                    <p className="text-slate-600 text-[11px] font-bold uppercase tracking-widest">
+                        {graphData?.nodes?.length ?? 0} nodes · {graphData?.edges?.length ?? 0} connections
+                    </p>
+                </div>
+            </div>
+            <div className="relative w-full h-72 bg-white/[0.02] border border-white/[0.06] rounded-3xl overflow-hidden">
+                <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle, rgba(99,102,241,0.3) 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
+                <svg className="absolute inset-0 w-full h-full">
+                    {nodes.slice(1).map((node, i) => (
+                        <line key={i} x1="50%" y1="50%" x2={`${node.x}%`} y2={`${node.y}%`}
+                            stroke="rgba(99,102,241,0.25)" strokeWidth="1.5" strokeDasharray="4 4" />
+                    ))}
+                </svg>
+                {nodes.map((node, i) => (
+                    <motion.div key={i}
+                        initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: i * 0.08, type: "spring", stiffness: 200 }}
+                        className="absolute -translate-x-1/2 -translate-y-1/2"
+                        style={{ left: `${node.x}%`, top: `${node.y}%` }}>
+                        {node.main ? (
+                            <div className="flex flex-col items-center gap-1.5">
+                                <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border-2 border-indigo-500/50 shadow-[0_0_20px_rgba(99,102,241,0.4)] flex items-center justify-center">
+                                    <GitBranch className="w-5 h-5 text-indigo-400" />
+                                </div>
+                                <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest whitespace-nowrap max-w-[80px] truncate text-center">{ctx.name}</span>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center gap-1">
+                                <div className={clsx("w-7 h-7 rounded-xl border border-white/10 flex items-center justify-center shadow-md", node.color + "/20")}>
+                                    <div className={clsx("w-2.5 h-2.5 rounded-full", node.color)} />
+                                </div>
+                                <span className="text-[9px] font-bold text-slate-500 whitespace-nowrap">{node.label}</span>
+                            </div>
+                        )}
+                    </motion.div>
+                ))}
+            </div>
+            <p className="text-center text-slate-700 text-[11px] font-bold uppercase tracking-widest mt-5">
+                {graphData ? "Live graph data" : "Loading graph..."} — interactive view coming soon
+            </p>
+        </motion.div>
+    );
+}
 
 // ─── Main Page ─────────────────────────────────────────────────
 
 export default function ContextPage() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const contextId = parseInt(id) || id;
-    const { contexts, addItem } = useApp();
+    const { contexts, addItem, deleteContext: deleteContextLocal, fetchContexts } = useApp();
     const [activeTab, setActiveTab] = useState("notes");
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const fileInputRef = useRef(null);
 
-    const ctx = contexts.find((c) => c.id === contextId || c.id === parseInt(id)) || contexts[0];
+    // Real backend data
+    const [ctx, setCtx] = useState(() => contexts.find((c) => c.id === parseInt(id)) || null);
+    const [backendItems, setBackendItems] = useState([]);
+    const [activityFeed, setActivityFeed] = useState([]);
+    const [graphData, setGraphData] = useState(null);
+    const [myRole, setMyRole] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [refreshKey, setRefreshKey] = useState(0);
+
+    const refreshAll = useCallback(async () => {
+        try {
+            const [ctxData, notes, tasks, files, deadlines, activity] = await Promise.all([
+                apiGetContext(id),
+                apiGetNotes(id),
+                apiGetTasks(id),
+                apiGetFiles(id).catch(() => []),
+                apiGetDeadlines(id).catch(() => []),
+                apiGetActivity(id).catch(() => []),
+            ]);
+            setCtx(ctxData);
+            fetchContexts?.(); // Sync left sidebar
+            const mappedNotes = notes.map(n => ({ id: n.id, type: 'text', content: n.content || n.title, title: n.title }));
+            const mappedTasks = tasks.map(t => ({ id: t.id, type: 'task', content: t.content || t.title, completed: t.completed }));
+            const mappedFiles = files.map(f => ({ id: f.id, type: 'file', name: f.name, size: f.size }));
+            const mappedEvents = deadlines.map(d => ({ id: d.id, type: 'deadline', title: d.title, due_at: d.due_at }));
+            
+            setBackendItems([...mappedNotes, ...mappedTasks, ...mappedFiles, ...mappedEvents]);
+            setActivityFeed(activity);
+            setRefreshKey(prev => prev + 1);
+            
+            // Sync the sidebar context list
+            fetchContexts?.();
+
+            // Try to get the graph and user's role
+            try {
+                const gr = await apiGetGraph(id);
+                setGraphData(gr);
+            } catch (_) { setGraphData({ nodes: [], edges: [] }); }
+
+            // Determine my role in this context
+            try {
+                const members = await apiGetMembers(id);
+                const token = localStorage.getItem("token");
+                if (token) {
+                    const payload = JSON.parse(atob(token.split(".")[1]));
+                    const myId = payload.id || payload.userId;
+                    const me = members.find(m => m.id === myId || m.user_id === myId);
+                    setMyRole(me?.role || "viewer");
+                }
+            } catch (_) { setMyRole("viewer"); }
+
+        } catch (e) {
+            console.error("ContextPage refreshAll:", e.message);
+        }
+    }, [id]);
+
+    useEffect(() => {
+        setLoading(true);
+        refreshAll().finally(() => setLoading(false));
+    }, [refreshAll]);
+
+    // 30-second ticker to force relative-time re-renders
+    const [, setTick] = useState(0);
+    useEffect(() => {
+        const timer = setInterval(() => setTick(t => t + 1), 30000);
+        return () => clearInterval(timer);
+    }, []);
+
+    // ── Delete context ──────────────────────────────────────────
+    const handleDeleteContext = async () => {
+        setDeleting(true);
+        try {
+            await apiDeleteContext(id);
+            deleteContextLocal?.(parseInt(id));
+            navigate("/dashboard");
+        } catch (e) {
+            alert(e.message || "Failed to delete context");
+        } finally {
+            setDeleting(false);
+            setShowDeleteModal(false);
+        }
+    };
+
+    // ── Add item ────────────────────────────────────────────────
+    const handleAddItem = async (type) => {
+        setDropdownOpen(false);
+        if (type === "file") { fileInputRef.current?.click(); return; }
+        try {
+            if (type === "text") {
+                await apiCreateNote(id, "", ""); // Start empty
+            } else if (type === "task") {
+                await apiCreateTask(id, "New Task", "");
+            } else if (type === "deadline") {
+                const today = new Date().toISOString().split('T')[0];
+                await apiCreateDeadline(id, "New Event", today);
+            }
+            await refreshAll();
+        } catch (e) {
+            console.error("handleAddItem:", e.message);
+            alert("Failed to add block: " + e.message);
+        }
+    };
+
+    const handleFileSelect = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+            await apiCreateFile(id, file.name, file.size);
+            await refreshAll();
+        } catch (err) {
+            console.error("File upload failed:", err.message);
+        }
+        e.target.value = "";
+    };
+
+    if (loading && !ctx) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <p className="text-slate-500 font-bold animate-pulse">Loading context...</p>
+            </div>
+        );
+    }
 
     if (!ctx) {
         return (
@@ -528,20 +1009,7 @@ export default function ContextPage() {
         );
     }
 
-    const handleAddItem = (type) => {
-        setDropdownOpen(false);
-        if (type === "file") { fileInputRef.current?.click(); return; }
-        addItem(ctx.id, { type, content: "" });
-    };
-
-    const handleFileSelect = (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        addItem(ctx.id, { type: "file", name: file.name, size: file.size });
-        e.target.value = "";
-    };
-
-    const items = ctx.items || [];
+    const items = backendItems.length > 0 ? backendItems : (ctx.items || []);
     const tasksDone = items.filter(i => i.type === "task" && i.completed).length;
     const tasksTotal = items.filter(i => i.type === "task").length;
 
@@ -551,6 +1019,40 @@ export default function ContextPage() {
             className="w-full h-full overflow-y-auto bg-[#05070A] font-sans custom-scrollbar"
         >
             <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileSelect} />
+
+            {/* ── Delete Confirm Modal ── */}
+            <AnimatePresence>
+                {showDeleteModal && (
+                    <>
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm"
+                            onClick={() => !deleting && setShowDeleteModal(false)} />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }} transition={{ duration: 0.2 }}
+                            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] w-full max-w-md bg-[#0D1117] border border-rose-500/30 rounded-3xl p-8 shadow-[0_32px_80px_rgba(0,0,0,0.7)]"
+                        >
+                            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto mb-5">
+                                <Trash2 className="w-6 h-6 text-rose-400" />
+                            </div>
+                            <h2 className="text-white font-black text-xl text-center mb-2">Delete Context</h2>
+                            <p className="text-slate-500 text-sm text-center mb-6">
+                                This will permanently delete <span className="text-white font-bold">{ctx.name}</span> and all its notes, tasks, and activity. This action cannot be undone.
+                            </p>
+                            <div className="flex gap-3">
+                                <button onClick={() => setShowDeleteModal(false)} disabled={deleting}
+                                    className="flex-1 py-3 rounded-xl border border-white/10 text-slate-400 font-black text-sm hover:bg-white/5 transition-all disabled:opacity-50">
+                                    Cancel
+                                </button>
+                                <button onClick={handleDeleteContext} disabled={deleting}
+                                    className="flex-1 py-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-400 font-black text-sm hover:bg-rose-500/30 transition-all disabled:opacity-50">
+                                    {deleting ? "Deleting..." : "Yes, Delete It"}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
 
             <div className="max-w-7xl mx-auto px-8 py-10 pb-32">
 
@@ -579,43 +1081,56 @@ export default function ContextPage() {
                             </div>
                         </div>
 
-                        {/* + Add (Notes only) */}
-                        {activeTab === "notes" && (
-                            <div className="relative mt-2">
+                        <div className="flex items-center gap-3 mt-2">
+                            {/* Add Items dropdown (Notes tab only) */}
+                            {activeTab === "notes" && (
+                                <div className="relative">
+                                    <motion.button
+                                        whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                                        onClick={() => setDropdownOpen(o => !o)}
+                                        className={clsx(
+                                            "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black tracking-wide transition-all border",
+                                            dropdownOpen ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-300" : "bg-cyan-500/10 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20"
+                                        )}>
+                                        <Plus className={clsx("w-4 h-4 transition-transform duration-200", dropdownOpen && "rotate-45")} strokeWidth={3} />
+                                        Add
+                                        <ChevronDown className={clsx("w-3.5 h-3.5 transition-transform duration-200", dropdownOpen && "rotate-180")} />
+                                    </motion.button>
+
+                                    <AnimatePresence>
+                                        {dropdownOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -6, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                exit={{ opacity: 0, y: -6, scale: 0.96 }} transition={{ duration: 0.15 }}
+                                                className="absolute right-0 top-full mt-2 w-48 bg-[#0D1117] border border-white/10 rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.6)] overflow-hidden z-50"
+                                            >
+                                                {ADD_OPTIONS.map(opt => (
+                                                    <button key={opt.type} onClick={() => handleAddItem(opt.type)}
+                                                        className="w-full flex items-center gap-3 px-4 py-3.5 text-[13px] font-black transition-all hover:bg-white/[0.04] text-left">
+                                                        <div className={clsx("w-7 h-7 rounded-lg flex items-center justify-center border", opt.bg, opt.border)}>
+                                                            <opt.icon className={clsx("w-3.5 h-3.5", opt.color)} />
+                                                        </div>
+                                                        <span className="text-slate-200">{opt.label}</span>
+                                                    </button>
+                                                ))}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                    {dropdownOpen && <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />}
+                                </div>
+                            )}
+
+                            {/* Delete (owner only) */}
+                            {myRole === "owner" && (
                                 <motion.button
                                     whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                                    onClick={() => setDropdownOpen(o => !o)}
-                                    className={clsx(
-                                        "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black tracking-wide transition-all border",
-                                        dropdownOpen ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-300" : "bg-cyan-500/10 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20"
-                                    )}>
-                                    <Plus className={clsx("w-4 h-4 transition-transform duration-200", dropdownOpen && "rotate-45")} strokeWidth={3} />
-                                    Add
-                                    <ChevronDown className={clsx("w-3.5 h-3.5 transition-transform duration-200", dropdownOpen && "rotate-180")} />
+                                    onClick={() => setShowDeleteModal(true)}
+                                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 transition-all">
+                                    <Trash2 className="w-4 h-4" />
+                                    Delete
                                 </motion.button>
-
-                                <AnimatePresence>
-                                    {dropdownOpen && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: -6, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-                                            exit={{ opacity: 0, y: -6, scale: 0.96 }} transition={{ duration: 0.15 }}
-                                            className="absolute right-0 top-full mt-2 w-48 bg-[#0D1117] border border-white/10 rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.6)] overflow-hidden z-50"
-                                        >
-                                            {ADD_OPTIONS.map(opt => (
-                                                <button key={opt.type} onClick={() => handleAddItem(opt.type)}
-                                                    className="w-full flex items-center gap-3 px-4 py-3.5 text-[13px] font-black transition-all hover:bg-white/[0.04] text-left">
-                                                    <div className={clsx("w-7 h-7 rounded-lg flex items-center justify-center border", opt.bg, opt.border)}>
-                                                        <opt.icon className={clsx("w-3.5 h-3.5", opt.color)} />
-                                                    </div>
-                                                    <span className="text-slate-200">{opt.label}</span>
-                                                </button>
-                                            ))}
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                                {dropdownOpen && <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />}
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -631,7 +1146,6 @@ export default function ContextPage() {
                                 )}>
                                 <tab.icon className={clsx("w-3.5 h-3.5", isActive ? "text-indigo-400" : "")} />
                                 {tab.label}
-                                {/* Deadline dot on Timeline tab */}
                                 {tab.id === "timeline" && ctx.deadline && (
                                     <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(239,68,68,0.8)]" />
                                 )}
@@ -648,15 +1162,11 @@ export default function ContextPage() {
 
                 {/* ── Tab Content ── */}
                 <div className="flex flex-col xl:flex-row gap-8">
-                    {/* Left Column - Main Content */}
                     <div className="flex-1 min-w-0">
                         <AnimatePresence mode="wait">
                             {activeTab === "notes" && (
                                 <motion.div key="notes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
-
-                                    {/* Editor Toolbar added here */}
-                                    <EditorToolbar />
-
+                                    <EditorToolbar onAddBlock={() => setDropdownOpen(true)} />
                                     {items.length === 0 ? (
                                         <div className="py-24 border-2 border-dashed border-white/5 rounded-[2rem] flex flex-col items-center justify-center text-center">
                                             <Plus className="w-10 h-10 text-slate-800 mb-4" />
@@ -667,9 +1177,10 @@ export default function ContextPage() {
                                         <div className="space-y-3">
                                             <AnimatePresence mode="popLayout">
                                                 {items.map(item => {
-                                                    if (item.type === "text") return <TextItem key={item.id} item={item} contextId={ctx.id} />;
-                                                    if (item.type === "task") return <TaskItem key={item.id} item={item} contextId={ctx.id} />;
-                                                    if (item.type === "file") return <FileItem key={item.id} item={item} contextId={ctx.id} />;
+                                                    if (item.type === "text") return <TextItem key={item.id} item={item} contextId={id} onRefresh={refreshAll} />;
+                                                    if (item.type === "task") return <TaskItem key={item.id} item={item} contextId={id} onRefresh={refreshAll} />;
+                                                    if (item.type === "file") return <FileItem key={item.id} item={item} contextId={id} onRefresh={refreshAll} />;
+                                                    if (item.type === "deadline") return <EventItem key={item.id} item={item} contextId={id} onRefresh={refreshAll} />;
                                                     return null;
                                                 })}
                                             </AnimatePresence>
@@ -680,24 +1191,25 @@ export default function ContextPage() {
 
                             {activeTab === "graph" && (
                                 <motion.div key="graph" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
-                                    <GraphPlaceholder ctx={ctx} />
+                                    <GraphTab ctx={ctx} graphData={graphData} />
                                 </motion.div>
                             )}
 
                             {activeTab === "timeline" && (
                                 <motion.div key="timeline" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
-                                    <TimelineView ctx={ctx} />
+                                    <TimelineView ctx={ctx} items={items} activityFeed={activityFeed} />
                                 </motion.div>
                             )}
                         </AnimatePresence>
                     </div>
 
-                    {/* Right Column - Sidebar */}
+                    {/* Right Column – Sidebar */}
                     <div className="w-full xl:w-[320px] shrink-0">
-                        <ContextSidebar context={ctx} />
+                        <ContextSidebar contextId={ctx.id} myRole={myRole} onMemberAction={refreshAll} refreshTrigger={refreshKey} />
                     </div>
                 </div>
             </div>
         </motion.div>
     );
 }
+

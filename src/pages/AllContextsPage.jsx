@@ -73,7 +73,7 @@ export default function AllContextsPage() {
                                 const theme = ICON_MAP[ctx.icon] || ICON_MAP["Zap"];
                                 const { Icon } = theme;
                                 const isDeleting = deletingId === ctx.id;
-                                const itemCount = ctx.items?.length ?? (ctx.notes.length + ctx.tasks.length + ctx.files.length);
+                                const itemCount = ctx.items?.length ?? ((ctx.notes?.length || 0) + (ctx.tasks?.length || 0) + (ctx.files?.length || 0));
 
                                 return (
                                     <motion.div

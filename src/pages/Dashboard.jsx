@@ -17,15 +17,20 @@ export default function Dashboard() {
 
     const username = user?.username || "there";
 
-    const handleCreateContext = (e) => {
+    const handleCreateContext = async (e) => {
         e.preventDefault();
         if (!newCtxName.trim()) return;
         setCreating(true);
-        const id = addContext(newCtxName.trim());
-        setNewCtxName("");
-        setShowModal(false);
-        setCreating(false);
-        navigate(`/context/${id}`);
+        try {
+            const id = await addContext(newCtxName.trim());
+            setNewCtxName("");
+            setShowModal(false);
+            navigate(`/context/${id}`);
+        } catch (err) {
+            console.error("Failed to create context:", err.message);
+        } finally {
+            setCreating(false);
+        }
     };
 
     // Stats derived from global state

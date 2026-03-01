@@ -1,18 +1,30 @@
+import { useState, useEffect } from "react";
 import { NavLink, useLocation, useParams } from "react-router-dom";
-import { Zap, PenLine, Network, Clock, Search as SearchIcon, Share, Plus } from "lucide-react";
+import { Zap, PenLine, Network, Clock, Search as SearchIcon, Share, Plus, Bell } from "lucide-react";
 import clsx from "clsx";
 import { MOCK_CONTEXTS } from "../lib/mockData";
 import { motion } from "framer-motion";
+import { useApp } from "../context/AppContext";
+import NotificationsDropdown from "./NotificationsDropdown";
 
 export default function TopNav() {
     const { id } = useParams();
     const location = useLocation();
     const path = location.pathname;
+    const { contexts, unreadCount, fetchNotifications } = useApp();
+    const [notifOpen, setNotifOpen] = useState(false);
 
-    const currentContext = MOCK_CONTEXTS.find(c => c.id === parseInt(id)) || MOCK_CONTEXTS[0];
+    // Context from real data if available
+    const currentContext = contexts.find(c => c.id === parseInt(id)) || { name: "Loading...", score: 0 };
+
+    useEffect(() => {
+        fetchNotifications();
+        const t = setInterval(fetchNotifications, 10000); // Poll notifications
+        return () => clearInterval(t);
+    }, [fetchNotifications]);
 
     return (
-        <div className="h-full flex items-center justify-between w-full">
+        <div className="h-full flex items-center justify-between w-full relative">
 
             {/* Left: Context Identity */}
             <div className="flex items-center gap-4">
@@ -70,6 +82,27 @@ export default function TopNav() {
 
                 {/* Global Context Actions */}
                 <div className="flex items-center gap-3">
+                    {/* Notifications Bell */}
+                    <div className="relative">
+                        <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => setNotifOpen(!notifOpen)}
+                            className={clsx(
+                                "p-2.5 rounded-xl border transition-all relative overflow-visible",
+                                notifOpen ? "bg-white/10 border-white/20 text-white" : "bg-surface border-white/5 text-slate-400 hover:text-white"
+                            )}
+                        >
+                            <Bell className="w-5 h-5" />
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-cyan-500 rounded-full flex items-center justify-center text-[9px] font-black text-black border-2 border-[#0B0F19] animate-pulse">
+                                    {unreadCount}
+                                </span>
+                            )}
+                        </motion.button>
+                        <NotificationsDropdown isOpen={notifOpen} onClose={() => setNotifOpen(false)} />
+                    </div>
+
                     <motion.button
                         whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.05)" }}
                         whileTap={{ scale: 0.95 }}
