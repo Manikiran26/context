@@ -46,12 +46,22 @@ export default function NotificationsDropdown({ isOpen, onClose }) {
 }
 
 function NotificationItem({ notification: n }: any) {
-    const { markAsRead, handleRequestAction } = useApp();
+    const { contexts, markAsRead, handleRequestAction } = useApp();
     const isRequest = n.type === 'MEMBER_REQUEST';
     const metadata = n.metadata || {};
 
+    // Only host can see Accept/Reject
+    const context = contexts.find(c => c.id === n.context_id || String(c.id) === String(n.context_id));
+    const isHost = context?.members?.find(m => m.user_id === n.user_id)?.role === 'host' || context?.role === 'host' || context?.myRole === 'host';
+    // Actually, context.myRole might be available if we fetched contexts with it, or context.members check.
+    // Let's rely on the fact that only hosts get MEMBER_REQUEST notifications from the backend now.
+    // However, to be extra safe as per prompt: "Accept and Reject buttons... ONLY if the current user is the host".
+
+    // I will check the role from the context state.
+    const showActions = isRequest && !n.isRead && (context?.role === 'host');
+
     return (
-        <div 
+        <div
             className={clsx(
                 "p-4 border-b border-white/5 transition-colors hover:bg-white/[0.02]",
                 !n.isRead && "bg-cyan-500/[0.02]"
@@ -72,22 +82,16 @@ function NotificationItem({ notification: n }: any) {
                                 <span className="font-black text-white">{metadata.actor_email}</span> wants to add <span className="font-black text-white">{metadata.target_email}</span>
                             </>
                         ) : (
-                            metadata.message || "New notification"
+                            n.message || metadata.message || "New notification"
                         )}
                     </p>
                     <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1.5">
                         {new Date(n.createdAt).toLocaleDateString()}
                     </p>
 
-                    {isRequest && !n.isRead && (
+                    {showActions && (
                         <div className="flex gap-2 mt-3">
-                            {/* In actual DB, context_members row ID is needed for approval. 
-                                We'll use a trick/fetch to find it if not in metadata, but 
-                                ideally metadata should include the membership row ID (membership_id).
-                                Since I am the author, I'll update the backend to include membership_id in metadata later.
-                                For now, I'll assume we can get it or I'll fix the backend now.
-                            */}
-                            <button 
+                            <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     handleRequestAction(metadata.membership_id, n.id, "approve");
@@ -96,7 +100,7 @@ function NotificationItem({ notification: n }: any) {
                             >
                                 <Check className="w-3 h-3" strokeWidth={3} /> Accept
                             </button>
-                            <button 
+                            <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     handleRequestAction(metadata.membership_id, n.id, "reject");

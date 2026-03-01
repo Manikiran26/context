@@ -3,14 +3,14 @@ import {
     apiLogin, apiRegister, apiHeartbeat,
     apiGetContexts, apiCreateContext, apiDeleteContext,
     apiGetNotifications, apiMarkNotificationRead,
-    apiApproveRequest, apiRejectRequest,
+    apiApproveRequest, apiRejectRequest, apiGetMembers,
 } from "../lib/api";
 
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
     const [user, setUserState] = useState(() => {
-        const saved = localStorage.getItem("ctx_user");
+        const saved = sessionStorage.getItem("ctx_user");
         return saved ? JSON.parse(saved) : null;
     });
     const [contexts, setContexts] = useState([]);
@@ -29,8 +29,8 @@ export function AppProvider({ children }) {
             email: data.user?.email || email,
             username: (data.user?.email || email).split("@")[0],
         };
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("ctx_user", JSON.stringify(userObj));
+        sessionStorage.setItem("token", data.token);
+        sessionStorage.setItem("ctx_user", JSON.stringify(userObj));
         setUserState(userObj);
         return userObj;
     }, []);
@@ -42,15 +42,15 @@ export function AppProvider({ children }) {
             email: data.user?.email || email,
             username: (data.user?.email || email).split("@")[0],
         };
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("ctx_user", JSON.stringify(userObj));
+        sessionStorage.setItem("token", data.token);
+        sessionStorage.setItem("ctx_user", JSON.stringify(userObj));
         setUserState(userObj);
         return userObj;
     }, []);
 
     const logout = useCallback(() => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("ctx_user");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("ctx_user");
         setUserState(null);
         setContexts([]);
         setNotifications([]);
@@ -58,14 +58,26 @@ export function AppProvider({ children }) {
 
     // Heartbeat: keep session alive
     const heartbeat = useCallback(async () => {
-        if (!localStorage.getItem("token")) return;
+        if (!sessionStorage.getItem("token")) return;
         try {
-            await apiHeartbeat();
+            const data = await apiHeartbeat();
+            if (data.user) {
+                const userObj = {
+                    id: data.user.id,
+                    email: data.user.email,
+                    username: data.user.email.split("@")[0],
+                };
+                // Only update if changed
+                if (JSON.stringify(user) !== JSON.stringify(userObj)) {
+                    setUserState(userObj);
+                    sessionStorage.setItem("ctx_user", JSON.stringify(userObj));
+                }
+            }
         } catch {
             // token expired – logout
             logout();
         }
-    }, [logout]);
+    }, [logout, user]);
 
     // Periodically update last_seen
     useEffect(() => {
@@ -77,7 +89,7 @@ export function AppProvider({ children }) {
 
     // ── Contexts ─────────────────────────────────────────────────
     const fetchContexts = useCallback(async () => {
-        if (!localStorage.getItem("token")) return;
+        if (!sessionStorage.getItem("token")) return;
         setContextsLoading(true);
         try {
             const data = await apiGetContexts();
@@ -88,6 +100,48 @@ export function AppProvider({ children }) {
             setContextsLoading(false);
         }
     }, []);
+
+    const fetchMembers = useCallback(async (contextId) => {
+        if (!contextId) return [];
+        try {
+            return await apiGetMembers(contextId);
+        } catch (e) {
+            console.error("fetchMembers:", e.message);
+            return [];
+        }
+    }, []);
+
+    // ── Notifications ─────────────────────────────────────────────
+    const fetchNotifications = useCallback(async () => {
+        if (!sessionStorage.getItem("token")) return;
+        try {
+            const data = await apiGetNotifications();
+            setNotifications(Array.isArray(data) ? data : []);
+        } catch (e) {
+            console.error("fetchNotifications:", e.message);
+        }
+    }, []);
+
+    const markAsRead = useCallback(async (notificationId) => {
+        try {
+            await apiMarkNotificationRead(notificationId);
+            setNotifications(prev =>
+                prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
+            );
+        } catch (e) {
+            console.error("markAsRead:", e.message);
+        }
+    }, []);
+
+    const unreadCount = notifications.filter(n => !n.isRead).length;
+
+    const refreshAll = useCallback(async (contextId) => {
+        if (contextId) {
+            await fetchMembers(contextId);
+        }
+        await fetchContexts();
+        await fetchNotifications();
+    }, [fetchMembers, fetchContexts, fetchNotifications]);
 
     // Load contexts once authenticated
     useEffect(() => {
@@ -161,29 +215,6 @@ export function AppProvider({ children }) {
         );
     }, []);
 
-    // ── Notifications ─────────────────────────────────────────────
-    const fetchNotifications = useCallback(async () => {
-        if (!localStorage.getItem("token")) return;
-        try {
-            const data = await apiGetNotifications();
-            setNotifications(Array.isArray(data) ? data : []);
-        } catch (e) {
-            console.error("fetchNotifications:", e.message);
-        }
-    }, []);
-
-    const markAsRead = useCallback(async (notificationId) => {
-        try {
-            await apiMarkNotificationRead(notificationId);
-            setNotifications(prev =>
-                prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
-            );
-        } catch (e) {
-            console.error("markAsRead:", e.message);
-        }
-    }, []);
-
-    const unreadCount = notifications.filter(n => !n.isRead).length;
 
     // ── Member Requests ──────────────────────────────────────────
     const handleRequestAction = useCallback(async (requestId, notificationId, action) => {
@@ -193,17 +224,16 @@ export function AppProvider({ children }) {
             } else {
                 await apiRejectRequest(requestId);
             }
-            // Mark related notification read and refresh
+            // Mark related notification read
             if (notificationId) {
                 await apiMarkNotificationRead(notificationId);
             }
-            await fetchNotifications();
-            // Also refresh contexts to show the new member
-            await fetchContexts();
+            // Sequential refresh
+            await refreshAll();
         } catch (e) {
             console.error("handleRequestAction:", e.message);
         }
-    }, [fetchNotifications, fetchContexts]);
+    }, [refreshAll]);
 
     return (
         <AppContext.Provider value={{
@@ -212,6 +242,7 @@ export function AppProvider({ children }) {
             addContext, deleteContext,
             addItem, updateItem, removeItem, toggleTask, setDeadline,
             notifications, fetchNotifications, markAsRead, unreadCount, handleRequestAction,
+            refreshAll, fetchMembers,
             createModalOpen, openCreateModal, closeCreateModal,
         }}>
             {children}

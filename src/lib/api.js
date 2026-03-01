@@ -4,7 +4,9 @@
 const API_BASE = '/api';
 
 function getToken() {
-    return localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
+    console.log("Auth token:", token);
+    return token;
 }
 
 function authHeaders() {
@@ -143,6 +145,11 @@ export async function apiInviteMember(contextId, email, role = 'viewer') {
 
 
 // ─── Activity ─────────────────────────────────────────────────────────────────
+export async function apiGetActivityStats(contextId) {
+    const res = await fetch(`${API_BASE}/contexts/${contextId}/activity-stats`, { headers: authHeaders() });
+    return handleResponse(res);
+}
+
 export async function apiGetActivity(contextId) {
     const res = await fetch(`${API_BASE}/contexts/${contextId}/activity`, { headers: authHeaders() });
     return handleResponse(res);
@@ -161,6 +168,15 @@ export async function apiRejectRequest(requestId) {
     const res = await fetch(`${API_BASE}/member-requests/${requestId}/reject`, {
         method: 'POST',
         headers: authHeaders(),
+    });
+    return handleResponse(res);
+}
+
+export async function apiTransferHost(contextId, targetUserId) {
+    const res = await fetch(`${API_BASE}/contexts/${contextId}/members/transfer-host`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ targetUserId }),
     });
     return handleResponse(res);
 }
@@ -270,5 +286,59 @@ export async function apiDeleteDeadline(contextId, deadlineId) {
         method: 'DELETE',
         headers: authHeaders(),
     });
+    return handleResponse(res);
+}
+
+// ─── Tags ───────────────────────────────────────────────────────────────────
+export async function apiGetTags(contextId) {
+    const res = await fetch(`${API_BASE}/contexts/${contextId}/tags`, { headers: authHeaders() });
+    return handleResponse(res);
+}
+
+export async function apiCreateTag(contextId, name) {
+    const res = await fetch(`${API_BASE}/contexts/${contextId}/tags`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ name }),
+    });
+    return handleResponse(res);
+}
+
+export async function apiAttachTag(contextId, itemId, itemType, tagId) {
+    const res = await fetch(`${API_BASE}/contexts/${contextId}/items/${itemId}/tags`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ item_type: itemType, tag_id: tagId }),
+    });
+    return handleResponse(res);
+}
+
+export async function apiRemoveTag(contextId, itemId, itemType, tagId) {
+    const res = await fetch(`${API_BASE}/contexts/${contextId}/items/${itemId}/tags/${tagId}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+        body: JSON.stringify({ item_type: itemType }),
+    });
+    return handleResponse(res);
+}
+
+// ─── Chat ───────────────────────────────────────────────────────────────────
+export async function apiGetMessages(contextId) {
+    const res = await fetch(`${API_BASE}/contexts/${contextId}/messages`, { headers: authHeaders() });
+    return handleResponse(res);
+}
+
+export async function apiCreateMessage(contextId, content) {
+    const res = await fetch(`${API_BASE}/contexts/${contextId}/messages`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ content }),
+    });
+    return handleResponse(res);
+}
+
+// ─── Structure Stats ───────────────────────────────────────────────────────
+export async function apiGetStructureStats(contextId) {
+    const res = await fetch(`${API_BASE}/contexts/${contextId}/structure-stats`, { headers: authHeaders() });
     return handleResponse(res);
 }

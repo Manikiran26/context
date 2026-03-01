@@ -8,7 +8,7 @@ export default function LandingPage() {
 
     // If already logged in, redirect to dashboard
     useEffect(() => {
-        const token = localStorage.getItem("token");
+        const token = sessionStorage.getItem("token");
         if (token) navigate("/dashboard", { replace: true });
     }, [navigate]);
 
@@ -17,7 +17,7 @@ export default function LandingPage() {
             {/* Ambient Background Glows */}
             <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-cyan-600/10 blur-[120px] rounded-full pointer-events-none animate-pulse" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-600/10 blur-[120px] rounded-full pointer-events-none" />
-            
+
             {/* Grid Overlay */}
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none" />
             <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_80%)]" />
@@ -30,7 +30,7 @@ export default function LandingPage() {
                 className="z-10 flex flex-col items-center px-6 text-center"
             >
                 {/* Badge */}
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.2 }}
@@ -75,7 +75,7 @@ export default function LandingPage() {
                         { icon: Cpu, label: "Graph-Native", sub: "Automatic item connections" },
                         { icon: Shield, label: "Owner-First", sub: "Secure membership control" },
                     ].map((f, i) => (
-                        <motion.div 
+                        <motion.div
                             key={f.label}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}

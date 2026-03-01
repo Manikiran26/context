@@ -32,19 +32,23 @@ export default function ContextCard({ context, delay = 0 }) {
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-slate-500" /> {context.time}</div>
-                        <div className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-slate-500" /> {context.members}</div>
+                {(context.members || 0) > 0 && (
+                    <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-slate-500" /> {context.time}</div>
+                            {context.members > 0 && (
+                                <div className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-slate-500" /> {context.members} members</div>
+                            )}
+                        </div>
+                        <div className="flex -space-x-2">
+                            {[...Array(Math.min(5, context.members))].map((_, i) => (
+                                <div key={i} className="w-7 h-7 rounded-full border-[3px] border-surface bg-gradient-to-br from-slate-600 to-slate-800 shadow-inner flex items-center justify-center text-[10px] font-bold text-white">
+                                    {String.fromCharCode(65 + i)}
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                    <div className="flex -space-x-2">
-                        {[...Array(Math.min(3, context.members))].map((_, i) => (
-                            <div key={i} className="w-7 h-7 rounded-full border-[3px] border-surface bg-gradient-to-br from-slate-600 to-slate-800 shadow-inner flex items-center justify-center text-[10px] font-bold text-white">
-                                {String.fromCharCode(65 + i)}
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                )}
             </div>
         </motion.div>
     );

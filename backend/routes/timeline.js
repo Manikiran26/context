@@ -23,25 +23,25 @@ router.get('/', auth, async (req, res) => {
             }
 
             query = `
-                SELECT a.id, a.action_type, a.metadata, a.created_at, c.name as context_name
+                SELECT a.id, a.type, a.metadata, a.created_at, c.name as context_name
                 FROM activity_logs a
                 LEFT JOIN contexts c ON a.context_id = c.id
                 WHERE a.context_id = $1
                 ORDER BY a.created_at DESC
-                LIMIT 50
+                
             `;
             params = [contextId];
         } else {
             // Global timeline: only logs from contexts the user is an active member of
             query = `
-                SELECT a.id, a.action_type, a.metadata, a.created_at, c.name as context_name
+                SELECT a.id, a.type, a.metadata, a.created_at, c.name as context_name
                 FROM activity_logs a
                 JOIN context_members cm ON cm.context_id = a.context_id
                 JOIN contexts c ON a.context_id = c.id
                 WHERE cm.user_id = $1
                 AND cm.status = 'active'
                 ORDER BY a.created_at DESC
-                LIMIT 50
+                
             `;
             params = [userId];
         }

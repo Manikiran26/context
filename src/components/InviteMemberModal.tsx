@@ -18,7 +18,7 @@ export default function InviteMemberModal({ isOpen, onClose, contextId, onInvite
         setMessage("");
 
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`/api/contexts/${contextId}/members`, {
                 method: 'POST',
                 headers: {

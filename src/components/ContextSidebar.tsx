@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-    Users, Clock, Activity, Zap, RefreshCw, UserPlus, 
-    CheckCircle, XCircle, Hash, Shield, FileText, CheckSquare, 
-    Paperclip, Layout, Plus, X 
+import {
+    Users, Clock, Activity, Zap, RefreshCw, UserPlus,
+    CheckCircle, XCircle, Hash, Shield, FileText, CheckSquare,
+    Paperclip, Layout, Plus, X
 } from "lucide-react";
 import {
     apiGetMembers, apiGetPendingRequests, apiInviteMember,
-    apiApproveRequest, apiRejectRequest, apiGetActivity, apiGetIntelligence,
+    apiApproveRequest, apiRejectRequest, apiGetActivity, apiGetIntelligence, apiCreateTag
 } from "../lib/api";
 import clsx from "clsx";
 import { useApp } from "../context/AppContext";
@@ -43,7 +43,7 @@ const ActivityIcon = ({ type }) => {
 };
 
 function activityLabel(a) {
-    const base = ACTION_STRINGS[a.action_type] || a.action_type;
+    const base = ACTION_STRINGS[a.type] || a.type;
     const title = a.metadata?.title || "";
     return `You ${base}: ${title || "Note"}`;
 }
@@ -59,21 +59,21 @@ const CircularGauge = ({ score }) => {
             <div className="relative w-32 h-32 flex items-center justify-center">
                 {/* Background Shadow/Glow */}
                 <div className="absolute inset-0 rounded-full bg-cyan-500/5 blur-2xl" />
-                
+
                 <svg className="w-full h-full -rotate-90 drop-shadow-[0_0_8px_rgba(6,182,212,0.3)]">
-                    <circle 
-                        cx="64" cy="64" r={radius} 
-                        stroke="rgba(255,255,255,0.03)" strokeWidth="8" fill="transparent" 
+                    <circle
+                        cx="64" cy="64" r={radius}
+                        stroke="rgba(255,255,255,0.03)" strokeWidth="8" fill="transparent"
                     />
-                    <motion.circle 
-                        initial={{ strokeDashoffset: circumference }} 
-                        animate={{ strokeDashoffset: offset }} 
+                    <motion.circle
+                        initial={{ strokeDashoffset: circumference }}
+                        animate={{ strokeDashoffset: offset }}
                         transition={{ duration: 1.5, ease: "circOut" }}
-                        cx="64" cy="64" r={radius} 
-                        stroke="#06B6D4" strokeWidth="8" 
-                        fill="transparent" 
-                        strokeDasharray={circumference} 
-                        strokeLinecap="round" 
+                        cx="64" cy="64" r={radius}
+                        stroke="#06B6D4" strokeWidth="8"
+                        fill="transparent"
+                        strokeDasharray={circumference}
+                        strokeLinecap="round"
                         className="drop-shadow-[0_0_12px_rgba(6,182,212,0.8)]"
                     />
                 </svg>
@@ -89,7 +89,7 @@ const CircularGauge = ({ score }) => {
 };
 
 // ── Sidebar component (exported) ──────────────────────────────────────────────
-export default function ContextSidebar({ contextId, myRole, onMemberAction, refreshTrigger }) {
+export default function ContextSidebar({ contextId, myRole, tags = [], onMemberAction, refreshTrigger }) {
     const { user } = useApp();
     const [intelligence, setIntelligence] = useState(null);
     const [members, setMembers] = useState([]);
@@ -101,21 +101,25 @@ export default function ContextSidebar({ contextId, myRole, onMemberAction, refr
     const [inviting, setInviting] = useState(false);
     const [isInviting, setIsInviting] = useState(false);
     const [inviteMsg, setInviteMsg] = useState("");
+    const [addingTag, setAddingTag] = useState(false);
+    const [newTag, setNewTag] = useState("");
     const [, setTick] = useState(0);
 
     const loadAll = useCallback(async () => {
         if (!contextId) return;
         try {
-            const [intel, mems, acts] = await Promise.all([
-                apiGetIntelligence(contextId).catch(() => null),
-                apiGetMembers(contextId).catch(() => []),
-                apiGetActivity(contextId).catch(() => []),
-            ]);
+            const intel = await apiGetIntelligence(contextId).catch(() => null);
             setIntelligence(intel);
+
+            const mems = await apiGetMembers(contextId).catch(() => []);
             setMembers(mems);
+
+            const acts = await apiGetActivity(contextId).catch(() => []);
             setActivity(acts);
-            if (myRole === "owner") {
-                apiGetPendingRequests(contextId).then(setPending).catch(() => {});
+
+            if (myRole === "host" || myRole === "owner") {
+                const pend = await apiGetPendingRequests(contextId).catch(() => []);
+                setPending(pend);
             }
         } catch (e) { console.error("sidebar load:", e.message); }
     }, [contextId, myRole]);
@@ -129,7 +133,7 @@ export default function ContextSidebar({ contextId, myRole, onMemberAction, refr
 
     const filteredActivity = useMemo(() => {
         if (filter === "ALL") return activity;
-        return activity.filter(a => a.action_type.includes(filter));
+        return activity.filter(a => a.type?.includes(filter));
     }, [activity, filter]);
 
     const handleInvite = async (e) => {
@@ -140,23 +144,23 @@ export default function ContextSidebar({ contextId, myRole, onMemberAction, refr
             await apiInviteMember(contextId, inviteEmail.trim(), inviteRole);
             setInviteMsg("✓ Invite sent successfully");
             setInviteEmail("");
-            loadAll();
-            onMemberAction?.();
+            await loadAll();
+            await onMemberAction?.();
             setTimeout(() => { setInviting(false); setInviteMsg(""); }, 1500);
-        } catch (e) { 
-            setInviteMsg("Failed: " + e.message); 
+        } catch (e) {
+            setInviteMsg("Failed: " + e.message);
         } finally {
             setIsInviting(false);
         }
     };
 
     const handleApprove = async (requestId: any) => {
-        try { await apiApproveRequest(requestId); loadAll(); onMemberAction?.(); }
+        try { await apiApproveRequest(requestId); await loadAll(); await onMemberAction?.(); }
         catch (e: any) { alert(e.message); }
     };
 
     const handleReject = async (requestId: any) => {
-        try { await apiRejectRequest(requestId); loadAll(); onMemberAction?.(); }
+        try { await apiRejectRequest(requestId); await loadAll(); await onMemberAction?.(); }
         catch (e: any) { alert(e.message); }
     };
 
@@ -168,7 +172,7 @@ export default function ContextSidebar({ contextId, myRole, onMemberAction, refr
             {/* CONTEXT INTELLIGENCE */}
             <div className="bg-surface border border-white/[0.05] rounded-3xl p-6 shadow-2xl">
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-6 block">Context Intelligence</span>
-                
+
                 <CircularGauge score={score} />
 
                 <div className="mt-4 space-y-5">
@@ -183,11 +187,11 @@ export default function ContextSidebar({ contextId, myRole, onMemberAction, refr
                                 <span className="text-[11px] font-black text-cyan-400">{val}%</span>
                             </div>
                             <div className="w-full h-1.5 bg-white/[0.04] rounded-full overflow-hidden border border-white/[0.02]">
-                                <motion.div 
-                                    initial={{ width: 0 }} 
-                                    animate={{ width: `${val}%` }} 
-                                    transition={{ duration: 1.2, ease: "circOut" }} 
-                                    className="h-full rounded-full bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.6)]" 
+                                <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${val}%` }}
+                                    transition={{ duration: 1.2, ease: "circOut" }}
+                                    className="h-full rounded-full bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.6)]"
                                 />
                             </div>
                         </div>
@@ -223,7 +227,7 @@ export default function ContextSidebar({ contextId, myRole, onMemberAction, refr
                         </div>
                     ))}
 
-                    <button 
+                    <button
                         onClick={() => setInviting(true)}
                         className="w-full py-3 rounded-xl border border-dashed border-white/10 text-[11px] font-black text-slate-500 hover:text-cyan-400 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all uppercase tracking-widest mt-2 flex items-center justify-center gap-2 group"
                     >
@@ -234,14 +238,14 @@ export default function ContextSidebar({ contextId, myRole, onMemberAction, refr
                     <AnimatePresence>
                         {inviting && (
                             <>
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                                     onClick={() => setInviting(false)}
                                     className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
                                 />
-                                <motion.div 
-                                    initial={{ opacity: 0, scale: 0.9, y: 20 }} 
-                                    animate={{ opacity: 1, scale: 1, y: 0 }} 
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.9, y: 20 }}
                                     className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[340px] bg-[#0D1117] border border-white/10 rounded-2xl p-6 shadow-[0_32px_64px_rgba(0,0,0,0.8)] z-[101]"
                                 >
@@ -251,11 +255,11 @@ export default function ContextSidebar({ contextId, myRole, onMemberAction, refr
 
                                     <form onSubmit={handleInvite} className="space-y-5">
                                         <div className="space-y-1.5">
-                                            <input 
+                                            <input
                                                 autoFocus
-                                                value={inviteEmail} 
+                                                value={inviteEmail}
                                                 onChange={e => setInviteEmail(e.target.value)}
-                                                placeholder="teammate@company.com" 
+                                                placeholder="teammate@company.com"
                                                 type="email"
                                                 className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-[13px] text-white focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all font-medium"
                                                 required
@@ -272,15 +276,15 @@ export default function ContextSidebar({ contextId, myRole, onMemberAction, refr
                                         )}
 
                                         <div className="flex items-center gap-3 mt-4">
-                                            <button 
+                                            <button
                                                 type="button"
                                                 onClick={() => setInviting(false)}
                                                 className="flex-1 h-[40px] rounded-xl bg-white/5 hover:bg-white/10 text-white text-[12px] font-black uppercase tracking-widest transition-colors flex items-center justify-center"
                                             >
                                                 Cancel
                                             </button>
-                                            <button 
-                                                type="submit" 
+                                            <button
+                                                type="submit"
                                                 disabled={isInviting || !inviteEmail}
                                                 className="flex-1 h-[40px] rounded-xl bg-cyan-500 text-black text-[12px] font-black uppercase tracking-widest hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all flex items-center justify-center gap-2"
                                             >
@@ -294,7 +298,7 @@ export default function ContextSidebar({ contextId, myRole, onMemberAction, refr
                     </AnimatePresence>
                 </div>
 
-                {myRole === "owner" && pending.length > 0 && (
+                {(myRole === "host" || myRole === "owner") && pending.length > 0 && (
                     <div className="mt-6 pt-6 border-t border-white/[0.05]">
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">Pending Approval</p>
                         {pending.map(p => (
@@ -317,12 +321,33 @@ export default function ContextSidebar({ contextId, myRole, onMemberAction, refr
                         <Hash className="w-3.5 h-3.5" />
                         Tags
                     </span>
-                    <Plus className="w-3.5 h-3.5 text-slate-600 cursor-pointer hover:text-white transition-colors" />
+                    <button onClick={() => setAddingTag(!addingTag)} className="text-slate-600 hover:text-white transition-colors">
+                        <Plus className="w-3.5 h-3.5" />
+                    </button>
                 </div>
+                <AnimatePresence>
+                    {addingTag && (
+                        <motion.form
+                            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                            onSubmit={async (e) => {
+                                e.preventDefault();
+                                if (!newTag.trim()) return;
+                                try {
+                                    await apiCreateTag(contextId, newTag.trim());
+                                    setNewTag(""); setAddingTag(false);
+                                    onMemberAction?.();
+                                } catch (e) { alert(e.message); }
+                            }}
+                            className="mb-3 overflow-hidden"
+                        >
+                            <input autoFocus value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="New tag name..." className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3 py-2 text-[11px] text-white focus:outline-none focus:border-cyan-500/50" />
+                        </motion.form>
+                    )}
+                </AnimatePresence>
                 <div className="flex flex-wrap gap-2 pt-2">
-                    {['Strategic', 'Active', 'High Priority'].map(t => (
-                        <span key={t} className="px-3 py-1.5 bg-white/[0.03] border border-white/10 rounded-xl text-[10px] font-bold text-slate-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer">
-                            {t}
+                    {tags.length === 0 ? <span className="text-[10px] text-slate-600 font-bold">No tags yet</span> : tags.map(t => (
+                        <span key={t.id} className="px-3 py-1.5 bg-white/[0.03] border border-white/10 rounded-xl text-[10px] font-bold text-slate-400 hover:text-white hover:bg-white/10 transition-all cursor-default flex items-center gap-1.5">
+                            {t.name}
                         </span>
                     ))}
                 </div>
@@ -344,11 +369,11 @@ export default function ContextSidebar({ contextId, myRole, onMemberAction, refr
                         <div key={a.id} className="flex gap-4 relative group">
                             <div className="shrink-0 pt-1">
                                 <div className="w-8 h-8 rounded-full bg-white/[0.02] border border-white/5 flex items-center justify-center relative group-hover:border-white/20 transition-all">
-                                    <div className={clsx("absolute inset-0 rounded-full opacity-10", 
-                                        a.action_type.includes("NOTE") ? "bg-purple-500" :
-                                        a.action_type.includes("TASK") ? "bg-emerald-500" : "bg-cyan-500"
+                                    <div className={clsx("absolute inset-0 rounded-full opacity-10",
+                                        a.type?.includes("NOTE") ? "bg-purple-500" :
+                                            a.type?.includes("TASK") ? "bg-emerald-500" : "bg-cyan-500"
                                     )} />
-                                    <ActivityIcon type={a.action_type} />
+                                    <ActivityIcon type={a.type} />
                                 </div>
                             </div>
                             <div className="flex-1 min-w-0">

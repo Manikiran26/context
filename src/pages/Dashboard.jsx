@@ -67,7 +67,7 @@ export default function Dashboard() {
     ];
 
     // Show top 4 contexts on dashboard
-    const priorityContexts = contexts.slice(0, 4);
+    const priorityContexts = contexts;
 
     return (
         <>

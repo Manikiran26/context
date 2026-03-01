@@ -14,7 +14,7 @@ import ContextPage from "./pages/ContextPage";
 
 // Guard: redirect to /login if no token
 function ProtectedRoute({ children }) {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) return <Navigate to="/login" replace />;
     return children;
 }

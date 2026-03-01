@@ -1,8 +1,10 @@
-import { Search, LayoutDashboard, Database, SearchIcon, Plus, Zap, Rocket, BookOpen, Brain, Sparkles } from "lucide-react";
+import { Search, LayoutDashboard, Database, SearchIcon, Plus, Zap, Rocket, BookOpen, Brain, Sparkles, MoreVertical, Trash2 } from "lucide-react";
 import { NavLink, useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import clsx from "clsx";
 import { useApp } from "../context/AppContext";
+import { useState } from "react";
+import { apiDeleteContext } from "../lib/api";
 
 const THEME_MAP = {
     "Zap": {
@@ -102,7 +104,24 @@ const CircularProgress = ({ score, color, isActive, theme, size = "sm" }) => {
 export default function LeftSidebar() {
     const { id: activeId } = useParams();
     const navigate = useNavigate();
-    const { user, contexts } = useApp();
+    const { user, contexts, fetchContexts } = useApp();
+    const [menuOpenId, setMenuOpenId] = useState(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
+    const handleDelete = async (ctxId) => {
+        console.log("Deleting context:", ctxId);
+        try {
+            await apiDeleteContext(ctxId);
+            if (fetchContexts) await fetchContexts();
+            // If current context is deleted, redirect
+            if (activeId === String(ctxId)) {
+                navigate("/dashboard");
+            }
+            setDeleteConfirmId(null);
+        } catch (error) {
+            console.error("Failed to delete context:", error);
+        }
+    };
 
     return (
         <div className="w-[280px] h-full flex flex-col bg-surface border-r border-white/5 text-sm font-sans relative z-30">
@@ -207,32 +226,54 @@ export default function LeftSidebar() {
                                             )}>
                                                 {ctx.name}
                                             </div>
-                                            <div className="text-[11px] font-bold text-slate-600 mt-0.5 tracking-wide">
-                                                {itemCount} items · {ctx.members?.length ?? 0} members
-                                            </div>
+                                            {(ctx.members?.length || 0) > 0 && (
+                                                <div className="text-[11px] font-bold text-slate-600 mt-0.5 tracking-wide">
+                                                    {ctx.members.length} members
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
-                                    <CircularProgress
-                                        score={ctx.score}
-                                        color={theme.color}
-                                        isActive={isActive}
-                                        theme={theme}
-                                    />
+                                    <div className="flex items-center gap-2">
+                                        <CircularProgress
+                                            score={ctx.score}
+                                            color={theme.color}
+                                            isActive={isActive}
+                                            theme={theme}
+                                        />
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setMenuOpenId(menuOpenId === ctx.id ? null : ctx.id);
+                                            }}
+                                            className="p-1 rounded-md text-slate-500 hover:text-white hover:bg-white/10 transition-colors"
+                                        >
+                                            <MoreVertical className="w-4 h-4" />
+                                        </button>
+                                    </div>
+
+                                    {menuOpenId === ctx.id && (
+                                        <div className="absolute right-4 top-14 bg-[#111827] border border-white/10 rounded-xl shadow-xl py-1 z-50 min-w-[140px]"
+                                            onClick={(e) => e.preventDefault()}
+                                        >
+                                            <button
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    setDeleteConfirmId(ctx.id);
+                                                    setMenuOpenId(null);
+                                                }}
+                                                className="w-full px-4 py-2 text-left text-[13px] font-bold text-rose-400 hover:bg-rose-500/10 flex items-center gap-2"
+                                            >
+                                                <Trash2 className="w-4 h-4" /> Delete Context
+                                            </button>
+                                        </div>
+                                    )}
                                 </NavLink>
                             </motion.div>
                         );
                     })}
                 </AnimatePresence>
 
-                <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => navigate("/dashboard")}
-                    className="flex items-center justify-center gap-2 mx-2 py-4 rounded-2xl border border-white/5 text-[13px] font-bold text-slate-500 hover:text-white hover:bg-white/[0.03] hover:border-white/10 transition-all mt-4"
-                >
-                    <Plus className="w-4 h-4" /> New Context
-                </motion.button>
             </div>
 
             {/* User Profile Footer */}
@@ -243,13 +284,28 @@ export default function LeftSidebar() {
                     </div>
                     <div>
                         <div className="text-[14px] font-black text-white leading-tight">{user?.username || "User"}</div>
-                        <div className="text-[11px] font-bold text-slate-600 mt-0.5">Pro · {contexts.length} contexts</div>
+                        {contexts.length > 0 && (
+                            <div className="text-[11px] font-bold text-slate-600 mt-0.5">Pro · {contexts.length} contexts</div>
+                        )}
                     </div>
                 </div>
                 <div className="w-5 h-5 rounded-lg border border-white/10 flex items-center justify-center text-[10px] text-slate-500 font-black">
                     ⇧
                 </div>
             </div>
+
+            {deleteConfirmId && (
+                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-[#0f1115] border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl">
+                        <h3 className="text-white font-black text-lg mb-2">Delete Context</h3>
+                        <p className="text-slate-400 text-sm mb-6">Are you sure you want to delete this context? This action cannot be undone.</p>
+                        <div className="flex justify-end gap-3">
+                            <button onClick={() => setDeleteConfirmId(null)} className="px-4 py-2 rounded-xl text-slate-300 font-bold hover:bg-white/5 transition-colors text-sm">Cancel</button>
+                            <button onClick={() => handleDelete(deleteConfirmId)} className="px-4 py-2 rounded-xl bg-rose-500 text-white font-black hover:bg-rose-600 transition-colors shadow-lg shadow-rose-500/20 text-sm">Delete</button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
 }

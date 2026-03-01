@@ -19,7 +19,7 @@ router.get('/', auth, async (req, res) => {
 
         const userId = req.user.id;
         const safeQuery = `%${query}%`;
-        
+
         let queries = [];
 
         if (type === 'all' || type === 'notes') {
@@ -66,10 +66,10 @@ router.get('/', auth, async (req, res) => {
             `);
         }
 
-        const fullQuery = queries.map(q => `(${q})`).join(' UNION ALL ') + ' ORDER BY created_at DESC LIMIT 50';
+        const fullQuery = queries.map(q => `(${q})`).join(' UNION ALL ') + ' ORDER BY created_at DESC';
 
         const result = await db.query(fullQuery, [userId, safeQuery]);
-        
+
         res.json(result.rows);
     } catch (err) {
         console.error('Smart Search Error:', err);

@@ -42,6 +42,14 @@ CREATE TABLE activity_logs (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
   context_id INTEGER REFERENCES contexts(id) ON DELETE SET NULL,
-  action VARCHAR(255) NOT NULL,
+  type VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS context_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    context_id INTEGER NOT NULL REFERENCES contexts(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
 );

@@ -6,7 +6,7 @@ async function test() {
         await client.query('BEGIN');
         console.log("Inserting activity logs...");
         await client.query(
-            'INSERT INTO activity_logs (user_id, context_id, action_type, metadata) VALUES ($1, $2, $3, $4)',
+            'INSERT INTO activity_logs (user_id, context_id, type, metadata) VALUES ($1, $2, $3, $4)',
             [3, 1, 'TEST_LOG', JSON.stringify({ name: 'test' })]
         );
         console.log("Inserted!");

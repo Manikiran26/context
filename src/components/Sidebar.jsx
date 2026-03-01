@@ -20,13 +20,6 @@ export default function Sidebar() {
                 <span className="font-bold text-lg tracking-tight">ContextOS</span>
             </div>
 
-            {/* New Context */}
-            <div className="p-4">
-                <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 hover:bg-surfaceHover/50 transition-all active:scale-[0.98]">
-                    <Plus className="w-4 h-4" />
-                    <span className="text-sm font-medium">New Context</span>
-                </button>
-            </div>
 
             {/* Navigation */}
             <nav className="flex-1 px-3 space-y-1">

@@ -6,16 +6,16 @@ async function migrate() {
 
         await db.query('BEGIN');
 
-        // 1. Rename column 'action' to 'action_type'
-        console.log("Renaming 'action' to 'action_type' in activity_logs...");
-        await db.query('ALTER TABLE activity_logs RENAME COLUMN action TO action_type');
+        // 1. Rename column 'action' to 'type'
+        console.log("Renaming 'action' to 'type' in activity_logs...");
+        await db.query('ALTER TABLE activity_logs RENAME COLUMN action TO type');
 
         // 2. Add 'metadata' column (JSONB)
         console.log("Adding 'metadata' column to activity_logs...");
         await db.query('ALTER TABLE activity_logs ADD COLUMN metadata JSONB DEFAULT \'{}\'');
 
-        // 3. Update existing rows if any - set action_type or migrate data
-        // For now, we keep the existing string in action_type, but new logs will use types
+        // 3. Update existing rows if any - set type or migrate data
+        // For now, we keep the existing string in type, but new logs will use types
 
         await db.query('COMMIT');
         console.log("Migration completed successfully.");
